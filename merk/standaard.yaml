@@ -1,0 +1,82 @@
+# ══════════════════════════════════════════════════════════════════
+#  Merkstijl "standaard" — het merk waarmee TutorialTool begint.
+#
+#  Neutraal en rustig: warm wit canvas, donkergrijze tekst, één blauw
+#  accent. Bedoeld om meteen te kunnen renderen zonder iets in te
+#  vullen, en om te kopiëren als vertrekpunt voor je eigen huisstijl:
+#
+#      ./tutorial.sh merk nieuw mijnmerk
+#
+#  Elke regel hieronder mag je aanpassen. Wat je weglaat krijgt een
+#  verstandige standaardwaarde.
+# ══════════════════════════════════════════════════════════════════
+naam: standaard
+site: ""
+wordmark: REELSTUDIO
+wordmark_accent: REEL
+stijl: editorial                # editorial (strak) | gradient (zacht verloop)
+
+# ── kleuren ──────────────────────────────────────────────────────
+# Je hebt er maar vier écht nodig: creme, ink, accent, wit.
+creme: "#f7f5f2"               # achtergrond van intro en kaarten
+wit: "#ffffff"                 # kaarten
+ink: "#1f2328"                 # koppen, knoppen, donkere secties
+grijs: "#5c6470"               # bodytekst
+muted: "#8b95a1"               # bijschriften
+accent: "#2f6df6"              # knoppen, randen, accentwoord
+perzik: "#e8f0ff"              # tekst op een accentvlak
+lijn: "#e3e0da"                # dunne randjes
+muted_donker: "#9aa3ae"        # bijschriften op donkere vlakken
+
+# ── fonts ────────────────────────────────────────────────────────
+# Een keten: het eerste lettertype dat op de computer staat wint. Zo
+# ziet het er overal goed uit zonder dat je iets moet installeren.
+# Wil je een specifiek lettertype? Zet het .ttf-bestand in fonts/ en
+# schrijf zijn volledige naam vooraan de keten.
+# Controleer met:  ./tutorial.sh dokter
+font_titel: Helvetica Neue Bold | Arial Bold | Segoe UI Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_kop: Helvetica Neue Bold | Arial Bold | Segoe UI Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_label: Helvetica Neue Medium | Segoe UI Semibold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_tekst: Helvetica Neue | Arial | Segoe UI | Liberation Sans | DejaVu Sans
+font_ondertitel: Helvetica Neue Medium | Segoe UI Semibold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+kop_spatie: -0.02                      # letterspatiëring koppen (em)
+eyebrow_caps: ja                       # labels in HOOFDLETTERS
+eyebrow_spatie: 0.06
+
+# ── vormen ───────────────────────────────────────────────────────
+radius_knop: 10
+radius_kaart: 16
+kaart_schaduw: nee
+kaart_rand: lijn                       # kleurnaam, of nee
+
+# ── ondertitels ──────────────────────────────────────────────────
+ondertitel_em: 36                      # letterhoogte in px
+ondertitel_tekst: creme
+ondertitel_pil: ink
+ondertitel_pil_alpha: 0.92
+ondertitel_onderrand: 40
+ondertitel_max_regels: 2
+
+# ── highlights / kaarten / chips ─────────────────────────────────
+highlight_kleur: accent
+dim_kleur: ink
+dim_sterkte: 0.34
+kaart_achtergrond: wit
+kaart_alpha: 0.97
+kaart_tekst: ink
+kaart_eyebrow: accent
+kaart_subtekst: grijs
+chip_achtergrond: ink
+chip_tekst: creme
+
+# ── intro / outro ────────────────────────────────────────────────
+intro_duur: 5
+outro_duur: 6.5
+intro_achtergrond: creme
+outro_achtergrond: ink
+band_tekst: ""                         # loopband onderaan intro en outro
+band_achtergrond: ink
+band_tekstkleur: creme
+outro_band_tekst: ""       # extra stuk in de loopband van de outro
+outro_band_achtergrond: accent
+outro_band_tekstkleur: wit

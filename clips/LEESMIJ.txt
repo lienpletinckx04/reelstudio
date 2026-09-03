@@ -1,0 +1,9 @@
+Zet hier je b-roll-beelden (mp4/mov): wandelshots, bureau, koffie, typen, ...
+Deze map gaat niet mee in git (video's zijn te groot).
+
+Dan, met je hooks in hooks.txt (één per regel):
+
+  ./reelstudio.sh broll hooks.txt clips/*.mp4 --cta "Volg voor meer"
+
+→ per hook één reel in je huisstijl, elk met een ander stuk beeld.
+Of via de studio: dubbelklik "Studio starten.command" → B-roll in bulk.

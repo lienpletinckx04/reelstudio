@@ -1,0 +1,80 @@
+# ══════════════════════════════════════════════════════════════════
+#  Merkstijl "asklien" — uitgelezen van www.asklien.ai (aug 2026).
+#  Strak, editorial: crème canvas, inkt-zwart, oranje-rood accent,
+#  zware grotesk-koppen met strakke spatiëring, knoppen met 8–10 px
+#  radius, kaarten met 18 px radius, donkere secties, marquee-band.
+#
+#  Kopieer dit bestand voor een klant (bv. merk/uw-huis.yaml) en
+#  verwijs ernaar in het storyboard met  merk: uw-huis
+# ══════════════════════════════════════════════════════════════════
+naam: asklien
+site: asklien.ai
+wordmark: ASKLIEN.ai          # "ASK" inkt · "LIEN" accent · ".ai" grijs
+wordmark_accent: LIEN         # dit stuk in de accentkleur
+wordmark_gedempt: .ai         # dit stuk gedempt
+stijl: editorial               # editorial (huidige site) | gradient (oude zachte look)
+
+# ── kleuren (hex, exact van de site) ─────────────────────────────
+creme: "#f6f1e7"               # achtergrond
+wit: "#ffffff"                 # kaarten
+ink: "#1c1a1f"                 # koppen, knoppen, donkere secties
+grijs: "#57534a"               # bodytekst
+muted: "#8a8378"               # ".ai", bijschriften
+accent: "#ff4d24"              # oranje-rood: accentwoord, knoppen, rand
+perzik: "#ffe4da"              # tekst op oranje vlak
+lijn: "#e6ddcb"                # dunne randjes op chips/kaarten
+muted_donker: "#b3ab9e"        # bijschriften op inkt
+
+# ── fonts (volledige naam zoals het systeem ze kent) ─────────────
+# De site gebruikt Archivo (900/800, koppen) en Schibsted Grotesk (400–600,
+# tekst). Die staan niet op deze Mac; Helvetica Neue is de dichtste
+# systeemgrotesk. Zet Archivo-Black.ttf / Archivo-ExtraBold.ttf en
+# SchibstedGrotesk-*.ttf in fonts/ en vervang hieronder door:
+#   font_titel: Archivo Black   font_kop: Archivo ExtraBold
+#   font_label: Schibsted Grotesk SemiBold   font_tekst: Schibsted Grotesk
+font_titel: Archivo Black | Helvetica Neue Bold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_kop: Archivo ExtraBold | Helvetica Neue Bold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_label: Schibsted Grotesk SemiBold | Helvetica Neue Medium | Segoe UI Semibold | Liberation Sans Bold | DejaVu Sans Bold
+font_tekst: Schibsted Grotesk | Helvetica Neue | Arial | Liberation Sans | DejaVu Sans
+font_ondertitel: Schibsted Grotesk Medium | Helvetica Neue Medium | Segoe UI Semibold | Liberation Sans Bold | DejaVu Sans Bold
+kop_spatie: -0.045                     # letterspatiëring koppen (em), zoals de site
+eyebrow_caps: ja                       # labels in HOOFDLETTERS met wat tracking
+eyebrow_spatie: 0.06
+
+# ── vormen ───────────────────────────────────────────────────────
+radius_knop: 10
+radius_kaart: 18
+kaart_schaduw: nee
+kaart_rand: lijn                       # kleur van 1.5px randje, of nee
+
+# ── ondertitels ──────────────────────────────────────────────────
+ondertitel_em: 36                      # letterhoogte in px (font-onafhankelijk)
+ondertitel_tekst: creme
+ondertitel_pil: ink
+ondertitel_pil_alpha: 0.92
+ondertitel_onderrand: 40
+ondertitel_max_regels: 2
+
+# ── highlights / kaarten / chips ─────────────────────────────────
+highlight_kleur: accent
+dim_kleur: ink
+dim_sterkte: 0.34
+kaart_achtergrond: wit
+kaart_alpha: 0.97
+kaart_tekst: ink
+kaart_eyebrow: accent
+kaart_subtekst: grijs
+chip_achtergrond: ink
+chip_tekst: creme
+
+# ── intro / outro ────────────────────────────────────────────────
+intro_duur: 5
+outro_duur: 6.5
+intro_achtergrond: creme
+outro_achtergrond: ink
+band_tekst: "AI DIE ÉCHT VOOR JE WERKT"   # marquee-band onderaan intro/outro
+band_achtergrond: ink
+band_tekstkleur: creme
+outro_band_tekst: "tot de volgende les"       # extra stuk in de loopband van de outro
+outro_band_achtergrond: accent
+outro_band_tekstkleur: wit

@@ -1,0 +1,31 @@
+# ══════════════════════════════════════════════════════════════════
+#  instellingen.yaml — jouw persoonlijke instellingen.
+#
+#  Kopieer dit bestand naar instellingen.yaml en vul in wat je nodig
+#  hebt. Alles is optioneel; wat je weglaat wordt automatisch gezocht.
+#  Dit bestand gaat NIET mee in git — het bevat paden van jouw
+#  computer, niet van die van anderen.
+#
+#  Elke instelling kan ook als omgevingsvariabele, met TUTORIAL_ ervoor:
+#      TUTORIAL_MERK=mijnmerk ./tutorial.sh render mijn-les
+# ══════════════════════════════════════════════════════════════════
+
+# Welk merk gebruiken als het storyboard er geen noemt.
+# merk: mijnmerk
+
+# Staat ffmpeg ergens waar de tool hem niet vindt? Zet hier het volledige pad.
+# ffmpeg: /opt/homebrew/opt/ffmpeg-full/bin/ffmpeg
+
+# Idem voor whisper-cli.
+# whisper: /opt/homebrew/bin/whisper-cli
+
+# Heb je het transcriptiemodel al ergens anders staan? Dan hoef je het
+# niet nog eens te downloaden.
+# model: ~/Desktop/ReelTool/models/ggml-large-v3-turbo.bin
+
+# Of enkel de map waarin het model staat:
+# model_map: ~/modellen
+
+# Vaste hint voor whisper: eigennamen, producten en menu-namen die in
+# jouw opnames voorkomen. Dit maakt de transcriptie merkbaar beter.
+# woordenlijst: "Les over Claude, Claude Design, Claude Code, prompt, skill."

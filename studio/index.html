@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reelstudio</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/static/studio.css">
+</head>
+<body>
+
+<header class="kop">
+  <div class="merk" id="kopmerk">Reelstudio</div>
+  <div class="stand" id="omgeving"></div>
+</header>
+
+<nav class="stappen" id="stappen">
+  <button data-stap="1" class="aan"><b>1</b> Video</button>
+  <button data-stap="2"><b>2</b> Stijl</button>
+  <button data-stap="3"><b>3</b> Aanwijzen</button>
+  <button data-stap="4"><b>4</b> Renderen</button>
+</nav>
+
+<main>
+
+<!-- ══ 1. VIDEO ══════════════════════════════════════════════════ -->
+<section id="stap1" class="stap aan">
+  <h2>Wat maak je vandaag?</h2>
+  <div class="keuzes doelen" id="doelen">
+    <button data-doel="tutorial" class="keuze"><b>Tutorial</b>
+      <span>Liggende les voor je platform — stappen, tips en een leskaart.</span></button>
+    <button data-doel="reel" class="keuze"><b>Reel</b>
+      <span>Staand, voor Instagram of TikTok — hook, ondertitels, eindkaart.</span></button>
+    <button data-doel="broll" class="keuze"><b>B-roll in bulk</b>
+      <span>Tekst op mooi beeld — één reel per hook, allemaal in één keer.</span></button>
+  </div>
+
+  <div class="kolommen">
+    <div>
+      <h2>Kies een video</h2>
+      <p class="uitleg">Je opname blijft staan waar ze staat — de studio maakt
+        alleen een verwijzing. Er wordt niets geüpload.</p>
+
+      <div class="snel" id="snel"></div>
+      <div class="pad" id="huidigepad"></div>
+      <div class="bladeren" id="bladeren"></div>
+
+      <details class="handmatig">
+        <summary>Of plak een pad</summary>
+        <input type="text" id="handpad" placeholder="~/Downloads/opname.mp4">
+        <button class="knop klein" id="handknop">Gebruiken</button>
+      </details>
+    </div>
+
+    <div>
+      <h2>Wat je al gemaakt hebt</h2>
+      <p class="uitleg">Verder werken aan een video of reel van eerder.</p>
+      <div class="lessen" id="lessen"></div>
+    </div>
+  </div>
+
+  <div class="paneel" id="brollpaneel" hidden>
+    <h3>B-roll reels in bulk</h3>
+    <p class="uitleg">Eén reel per regel: je clips komen eronder, de tekst blijft
+      het hele filmpje in beeld. Clips draaien rond als er minder clips dan
+      hooks zijn.</p>
+    <label>Hooks <small>(één per regel)</small>
+      <textarea id="broll_hooks" rows="5" placeholder="3 AI-fouten die je klanten kosten&#10;Dit automatiseer ik altijd eerst"></textarea></label>
+    <div class="rij">
+      <label>Stukjes per reel <small>(2 of 3 = mini-montage, elke reel andere stukken)</small>
+        <select id="broll_stukjes">
+          <option value="1">1 — één doorlopend stuk</option>
+          <option value="2" selected>2 — montage van twee stukjes</option>
+          <option value="3">3 — montage van drie stukjes</option>
+        </select></label>
+      <label>Uiterlijk
+        <select id="broll_look">
+          <option value="">Naturel</option>
+          <option value="warm">Warm</option>
+        </select></label>
+    </div>
+    <label>Eindkaart-knop <small>(leeg = geen eindkaart)</small>
+      <input type="text" id="broll_cta" value="Volg voor meer"></label>
+    <button class="knop" id="broll_start">Maak ze allemaal</button>
+  </div>
+
+  <div class="paneel" id="nieuwpaneel" hidden>
+    <h3>Klaarzetten</h3>
+    <p class="uitleg">Meerdere opnames? Klik ze allemaal aan — ze worden in
+      deze volgorde aan elkaar gemonteerd tot één video.</p>
+    <div class="gekozen" id="gekozenbestand"></div>
+    <label>Naam <small>(alleen de mapnaam, niet wat de kijker ziet)</small>
+      <input type="text" id="lesnaam"></label>
+    <label>Titel in beeld <small>(leeg laten mag — een reel heeft vaak geen titelkaart)</small>
+      <input type="text" id="lestitel" placeholder="Je website bouwen met Claude"></label>
+    <p class="uitleg" id="whispernoot"></p>
+    <button class="knop" id="maakles">Klaarzetten</button>
+  </div>
+</section>
+
+<!-- ══ 2. STIJL ══════════════════════════════════════════════════ -->
+<section id="stap2" class="stap">
+  <div class="kolommen breed">
+    <div>
+      <h2>Wat voor video?</h2>
+      <div class="keuzes" id="formaten"></div>
+
+      <h2>Tutorial of uitleg?</h2>
+      <div class="keuzes" id="soorten">
+        <button data-soort="tutorial" class="keuze"><b>Tutorial</b>
+          <span>Met stappen, tips en een leskaart aan het einde.</span></button>
+        <button data-soort="uitleg" class="keuze"><b>Uitleg</b>
+          <span>Gewoon vertellen — alleen hook, ondertitels en een eindkaart met knop.</span></button>
+      </div>
+
+      <h2>Huisstijl</h2>
+      <div class="keuzes merken" id="merken"></div>
+
+      <h2>Uiterlijk</h2>
+      <div class="keuzes" id="looks">
+        <button data-look="naturel" class="keuze"><b>Naturel</b>
+          <span>Het beeld zoals je het aanleverde.</span></button>
+        <button data-look="warm" class="keuze"><b>Warm</b>
+          <span>Iets bruiner, zachtere huid, meer kleur in de lippen.</span></button>
+      </div>
+
+      <h2>Hoe komt je opname in beeld?</h2>
+      <div class="keuzes" id="kaders">
+        <button data-kader="auto" class="keuze"><b>Automatisch</b>
+          <span>Kiest zelf: vullen bij een staande opname, passen bij een breed scherm.</span></button>
+        <button data-kader="passen" class="keuze"><b>Hele scherm tonen</b>
+          <span>Alles blijft zichtbaar, met merkbalken erboven en eronder.</span></button>
+        <button data-kader="vullen" class="keuze"><b>Kader vullen</b>
+          <span>Beeldvullend; wat erbuiten valt gaat weg.</span></button>
+      </div>
+
+      <h2>Tekst</h2>
+      <label>Titel <small>(een | forceert een regeleinde in beeld)</small>
+        <input type="text" id="v_titel"></label>
+      <label>Hook <small>(grote regel over het beeld in de eerste seconden)</small>
+        <input type="text" id="v_hook" placeholder="Zo maak je dit in 30 seconden"></label>
+      <div class="rij">
+        <label class="vink"><input type="checkbox" id="v_intro"> Titelkaart vooraan</label>
+        <label class="vink"><input type="checkbox" id="v_outro"> Eindkaart achteraan</label>
+      </div>
+      <label>Eindkaart: titel <input type="text" id="v_outrotitel"></label>
+      <label>Eindkaart: knop <input type="text" id="v_cta" placeholder="Volg voor meer"></label>
+    </div>
+
+    <div class="vast">
+      <h2>Voorbeeld</h2>
+      <p class="uitleg">Eén beeld uit je eigen opname, met alles erop.</p>
+      <div class="voorbeeldhouder" id="voorbeeldhouder">
+        <img id="voorbeeld" alt="voorbeeld">
+        <div class="bezig" id="voorbeeldbezig" hidden></div>
+      </div>
+      <div class="schuif">
+        <input type="range" id="v_tijd" min="0" max="100" value="10">
+        <span id="v_tijdlabel">0:00</span>
+      </div>
+      <div class="meldingen" id="v_meldingen"></div>
+      <div id="subhulp" hidden>
+        <p class="uitleg" id="subhulptekst"></p>
+        <button class="knop klein" id="subknop" hidden>Ondertitels automatisch maken</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 3. AANWIJZEN ══════════════════════════════════════════════ -->
+<section id="stap3" class="stap">
+  <div class="kolommen breed">
+    <div>
+      <h2>Wijs aan waar de kijker moet kijken</h2>
+      <p class="uitleg">Sleep een kader over de knop of het veld waar het om
+        gaat. Dat wordt een highlight met een label en een oplichtende rand.</p>
+
+      <div class="beeldhouder" id="beeldhouder">
+        <img id="beeld" alt="beeld uit je opname" draggable="false">
+        <div class="selectie" id="selectie" hidden></div>
+        <div class="bezig" id="beeldbezig" hidden></div>
+      </div>
+
+      <div class="clipbalk" id="clipbalk"></div>
+
+      <div class="schuif">
+        <button class="knop klein" id="stap_terug">◀</button>
+        <input type="range" id="tijd" min="0" max="100" value="0" step="0.1">
+        <button class="knop klein" id="stap_vooruit">▶</button>
+        <span id="tijdlabel">0:00</span>
+      </div>
+
+      <div class="acties">
+        <button class="knop klein" id="voeg_stap">+ Stap hier</button>
+        <button class="knop klein" id="voeg_tip">+ Tip hier</button>
+        <button class="knop klein" id="voeg_prompt">+ Prompt hier</button>
+        <button class="knop klein grijs" id="voeg_knip">✂ Knip vanaf hier</button>
+        <button class="knop klein grijs" id="toon_voorbeeld">Voorbeeld van dit moment</button>
+      </div>
+    </div>
+
+    <div class="vast">
+      <h2>In je video</h2>
+      <div class="lijst" id="elementen"></div>
+
+      <h2>Ondertitels</h2>
+      <p class="uitleg" id="subsuitleg">Klik op een zin om ze te verbeteren.
+        Leegmaken haalt ze weg. Tijden blijven staan.</p>
+      <div class="lijst subs" id="subs"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 4. RENDEREN ═══════════════════════════════════════════════ -->
+<section id="stap4" class="stap">
+  <h2>Renderen</h2>
+  <p class="uitleg">Begin met een preview: sneller en klein, goed genoeg om te
+    beoordelen. De eindrender doe je als alles klopt.</p>
+  <div class="acties">
+    <button class="knop" id="render_preview">Preview renderen</button>
+    <button class="knop grijs" id="render_final">Eindrender</button>
+  </div>
+  <div class="voortgang" id="voortgang" hidden>
+    <div class="balk"><i id="balk"></i></div>
+    <div class="voortlabel" id="voortlabel"></div>
+    <pre class="log" id="log"></pre>
+  </div>
+  <div id="resultaat"></div>
+</section>
+
+</main>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/static/studio.js"></script>
+</body>
+</html>

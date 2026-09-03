@@ -1,0 +1,65 @@
+# ══════════════════════════════════════════════════════════════════
+#  STORYBOARD — wat moet er wanneer in beeld?
+#  Tijden zijn altijd in de ORIGINELE opname (m:ss of m:ss.s), ook al
+#  wordt er geknipt of versneld: de tool rekent alles zelf om.
+#  Coördinaten zijn pixels op 1920x1080. Vraag een raster-beeld met:
+#      ./tutorial.sh frame <les> 1:05 --raster
+# ══════════════════════════════════════════════════════════════════
+
+titel: __TITEL__                 # grote titel op de intro (| = regeleinde forceren)
+soort: tutorial                  # tutorial (stappen, lesgevoel) | uitleg (gewoon vertellen)
+# reeks: Les 1                   # klein label bij de intro (bv. "Les 1")
+merk: standaard                 # welk merkbestand uit merk/
+bron: bron.mp4
+ondertitels: ondertitels.srt
+intro: ja
+outro: ja
+# intro_punten: [Stap 1, Stap 2, Stap 3]       # pilletjes onder de titel
+# outro_eyebrow: Dat heb je nu
+# outro_titel: Goed gedaan.
+# outro_punten: [Resultaat 1, Resultaat 2]
+# outro_volgende: "Volgende les: …"
+webcam: [1338, 824, 404, 228]    # zone van het webcam-bubbeltje (x y b h) — ondertitels blijven eruit
+stapchip: ja                     # klein chipje linksboven met de huidige stap
+stapkaart_duur: 5                # hoe lang de grote stap-kaart blijft staan
+
+# ── stappen: grote kaart bij het begin, daarna klein chipje ───────
+stappen: []
+#  - van: 0:00
+#    titel: Wat we gaan maken
+#  - van: 1:03
+#    titel: Kies het krachtigste model
+
+# ── highlights: spotlight + rand + label rond een stuk scherm ─────
+#   gebied: [x, y, breedte, hoogte]   zoom: 1.5 (optioneel)   dim: nee (optioneel)
+#   label: auto | boven | onder
+highlights: []
+#  - van: 1:03
+#    tot: 1:20
+#    gebied: [1255, 315, 80, 56]
+#    tekst: Modelkeuze
+#    zoom: 1.5
+
+# ── tips: kaart rechtsboven (standaard 6 s) ───────────────────────
+tips: []
+#  - van: 0:42
+#    tekst: Te snel tevreden = generiek. Blijf prompten.
+#    duur: 6
+
+# ── prompts: "Prompt 1 · Branding-interview" rechtsboven ──────────
+prompts: []
+#  - van: 2:38
+#    nummer: 1
+#    titel: Branding-interview
+#    tekst: De volledige tekst staat onder deze les
+
+# ── knippen (weg) en versnellen (Claude werkt…) ──────────────────
+knip: []
+#  - [16:48, 17:03]
+versnel:
+__VERSNEL__
+versnel_tekst: Claude werkt — versneld
+
+# bron duurt __DUUR__
+# codec: x264 (standaard, beste kwaliteit/MB) | videotoolbox (sneller)
+# crf: 19

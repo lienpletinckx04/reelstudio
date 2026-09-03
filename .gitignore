@@ -1,0 +1,38 @@
+# ── je eigen lessen blijven van jou ───────────────────────────────
+# Deze repo bevat de tool, niet het materiaal. Alles wat je in lessen/
+# maakt (opnames, transcripten, notities, renders) blijft dus op je
+# eigen computer.
+lessen/*
+!lessen/.gitkeep
+*.wav
+*.mp4
+*.mov
+
+# whisper-model (2 GB) — download-instructie staat in LEESMIJ.md
+models/
+*.bin
+
+# fonts: zelf downloaden van Google Fonts (licentie ok, maar groot en extern)
+fonts/*.ttf
+fonts/*.otf
+fonts/*.ttc
+
+# tijdelijke beelden van de studio
+
+# persoonlijke instellingen en gemeten eigenschappen van deze computer
+instellingen.yaml
+.machine_cache.json
+
+# de ingebouwde proefrender en de merkvoorbeelden
+.merkvoorbeeld/
+merk/*-voorbeeld.png
+
+# macOS / editors / Windows
+.DS_Store
+Thumbs.db
+.claude/
+__pycache__/
+*.pyc
+
+# cache van de bestandenkiezer
+.miniaturen/

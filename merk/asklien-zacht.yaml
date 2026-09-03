@@ -1,0 +1,53 @@
+# ══════════════════════════════════════════════════════════════════
+#  Merkstijl "asklien-zacht" — de VORIGE asklien-look (crème/aubergine/
+#  perzik→roze gradient). Bewaard als voorbeeld van de "gradient"-stijl.
+#  Kopieer dit bestand voor een klant (bv. merk/uw-huis.yaml) en
+#  verwijs ernaar in het storyboard met  merk: uw-huis
+# ══════════════════════════════════════════════════════════════════
+naam: asklien-zacht
+site: asklien.ai
+stijl: gradient                 # gradient (zacht) | editorial (strak, huidige site)
+
+# ── kleuren (hex, zoals op de website) ───────────────────────────
+creme: "#fff8f2"
+wit: "#ffffff"
+aubergine: "#594a66"
+ink: "#2e303f"
+perzik: "#f7a87d"
+koraal: "#f38282"
+roze: "#f2295b"
+accent: roze                   # de accentkleur van dit merk
+
+# ── fonts (volledige naam zoals het systeem ze kent) ──────────────
+# Inter / DM Sans staan niet op deze Mac; Avenir Next is de dichtste
+# systeemvariant. Zet Inter-*.ttf en DMSans-*.ttf in de map fonts/ en
+# vervang de namen hieronder door "Inter Light", "DM Sans Medium", ...
+font_titel: Archivo Black | Helvetica Neue Bold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_kop: Archivo ExtraBold | Helvetica Neue Bold | Arial Bold | Liberation Sans Bold | DejaVu Sans Bold
+font_label: Schibsted Grotesk SemiBold | Helvetica Neue Medium | Segoe UI Semibold | Liberation Sans Bold | DejaVu Sans Bold
+font_ondertitel: Schibsted Grotesk Medium | Helvetica Neue Medium | Segoe UI Semibold | Liberation Sans Bold | DejaVu Sans Bold
+
+# ── ondertitels ──────────────────────────────────────────────────
+ondertitel_grootte: 50        # ASS-fontgrootte (≈ 37 px letterhoogte)
+ondertitel_tekst: creme
+ondertitel_pil: aubergine
+ondertitel_pil_alpha: 0.92    # 1 = dekkend
+ondertitel_onderrand: 40      # afstand tot onderkant beeld
+ondertitel_max_regels: 2
+
+# ── highlights / kaarten ─────────────────────────────────────────
+highlight_kleur: roze
+dim_kleur: ink
+dim_sterkte: 0.34             # hoe donker de rest wordt (0 = niets)
+kaart_achtergrond: creme
+kaart_alpha: 0.96
+kaart_tekst: ink
+kaart_eyebrow: koraal
+chip_achtergrond: creme
+chip_tekst: aubergine
+
+# ── intro / outro ────────────────────────────────────────────────
+intro_duur: 4.5
+outro_duur: 6
+gradient_van: perzik
+gradient_naar: roze

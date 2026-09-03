@@ -1,0 +1,296 @@
+/* ══════════════════════════════════════════════════════════════════
+   studio.css — de interface van TutorialTool.
+
+   Rustig en strak, in dezelfde geest als wat de tool zelf tekent: een
+   crème vlak, inkt-zwarte tekst, één accentkleur, blokken met een
+   zachte radius. Bewust weinig kleur, zodat je aandacht naar je eigen
+   beeld gaat en niet naar de knoppen eromheen.
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  --creme: #f7f5f2;
+  --wit: #ffffff;
+  --ink: #1f2328;
+  --grijs: #5c6470;
+  --muted: #8b95a1;
+  --lijn: #e3e0da;
+  --accent: #2f6df6;
+  --accent-zacht: #eaf0ff;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--creme);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── kop ─────────────────────────────────────────────────────── */
+.kop {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; border-bottom: 1px solid var(--lijn); background: var(--wit);
+}
+.merk { font-weight: 800; letter-spacing: -0.02em; font-size: 17px; }
+.merk span { color: var(--accent); }
+.stand { font-size: 13px; color: var(--grijs); display: flex; gap: 16px; }
+.stand b { font-weight: 600; }
+.stand .nee { color: #c0392b; }
+.stand .ja { color: #1e8e4e; }
+
+/* ── stappen ─────────────────────────────────────────────────── */
+.stappen {
+  display: flex; gap: 8px; padding: 16px 28px 0; flex-wrap: wrap;
+}
+.stappen button {
+  border: 1px solid var(--lijn); background: var(--wit); color: var(--grijs);
+  padding: 9px 18px; border-radius: 999px; cursor: pointer; font: inherit;
+  font-size: 14px; display: flex; align-items: center; gap: 8px;
+}
+.stappen button b {
+  background: var(--lijn); color: var(--ink); width: 20px; height: 20px;
+  border-radius: 50%; display: grid; place-items: center; font-size: 12px;
+}
+.stappen button.aan { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.stappen button.aan b { background: var(--accent); color: #fff; }
+.stappen button:disabled { opacity: .45; cursor: not-allowed; }
+
+main { padding: 24px 28px 60px; max-width: 1500px; }
+
+.stap { display: none; }
+.stap.aan { display: block; }
+
+h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em;
+     margin: 26px 0 10px; color: var(--grijs); font-weight: 600; }
+h2:first-child { margin-top: 0; }
+h3 { font-size: 16px; margin: 0 0 12px; }
+.uitleg { color: var(--grijs); margin: -4px 0 14px; max-width: 60ch; font-size: 14px; }
+
+.kolommen { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+.kolommen.breed { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); }
+@media (max-width: 980px) { .kolommen, .kolommen.breed { grid-template-columns: 1fr; } }
+.vast { position: sticky; top: 20px; }
+
+/* ── knoppen ─────────────────────────────────────────────────── */
+.knop {
+  background: var(--accent); color: #fff; border: 0; border-radius: 10px;
+  padding: 11px 20px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.knop:hover { filter: brightness(1.06); }
+.knop:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+.knop.klein { padding: 7px 14px; font-size: 13px; }
+.knop.grijs { background: var(--wit); color: var(--ink); border: 1px solid var(--lijn); }
+
+/* ── bestandskiezer ──────────────────────────────────────────── */
+.snel { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.snel button {
+  border: 1px solid var(--lijn); background: var(--wit); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; font: inherit; font-size: 13px;
+}
+.pad { font-size: 12px; color: var(--muted); margin-bottom: 8px; word-break: break-all; }
+.bladeren {
+  border: 1px solid var(--lijn); border-radius: var(--radius); background: var(--wit);
+  max-height: 340px; overflow: auto;
+}
+.bladeren .rij-item {
+  display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  padding: 9px 14px; border-bottom: 1px solid var(--lijn); cursor: pointer;
+}
+.bladeren .rij-item:last-child { border-bottom: 0; }
+.bladeren .rij-item:hover { background: var(--accent-zacht); }
+.bladeren .rij-item.video { font-weight: 600; justify-content: flex-start; }
+.bladeren .rij-item small { color: var(--muted); font-weight: 400; }
+.bladeren .rij-item.video small { margin-left: auto; white-space: nowrap; }
+.bladeren .rij-item.video .vnaam {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.bladeren .mini {
+  flex: none; width: 62px; height: 36px; border-radius: 6px;
+  object-fit: cover; background: var(--lijn);
+}
+.bladeren .leeg-mini {
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.leeg { padding: 18px; color: var(--muted); font-size: 14px; }
+
+.handmatig { margin-top: 14px; font-size: 14px; }
+.handmatig summary { cursor: pointer; color: var(--grijs); }
+.handmatig input { width: 60%; margin: 10px 8px 0 0; }
+
+/* ── formulier ───────────────────────────────────────────────── */
+label { display: block; margin: 12px 0; font-size: 14px; font-weight: 600; }
+label small { font-weight: 400; color: var(--muted); }
+input[type=text] {
+  display: block; width: 100%; margin-top: 6px; padding: 10px 12px;
+  border: 1px solid var(--lijn); border-radius: 10px; font: inherit;
+  background: var(--wit); color: var(--ink);
+}
+input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.rij { display: flex; gap: 22px; flex-wrap: wrap; }
+.vink { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.vink input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+.paneel {
+  margin-top: 26px; padding: 20px 22px; background: var(--wit);
+  border: 1px solid var(--lijn); border-radius: var(--radius); max-width: 620px;
+}
+.gekozen { font-size: 13px; color: var(--grijs); margin-bottom: 12px; }
+.gekozen .clip {
+  display: flex; align-items: center; gap: 10px; background: var(--creme);
+  border: 1px solid var(--lijn); border-radius: 9px; padding: 7px 10px; margin-bottom: 5px;
+}
+.gekozen .clip .nr {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none;
+}
+.gekozen .clip .naam { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                       white-space: nowrap; color: var(--ink); }
+.gekozen .clip button {
+  border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 15px;
+  line-height: 1; padding: 0 3px;
+}
+.gekozen .clip button:hover { color: var(--ink); }
+
+/* ── keuzekaarten ────────────────────────────────────────────── */
+.keuzes { display: flex; gap: 10px; flex-wrap: wrap; }
+.keuze {
+  border: 1px solid var(--lijn); background: var(--wit); border-radius: var(--radius);
+  padding: 12px 14px; cursor: pointer; text-align: left; font: inherit;
+  min-width: 170px; flex: 1 1 170px; max-width: 260px; display: block;
+}
+.keuze b { display: block; margin-bottom: 3px; }
+.keuze span { color: var(--muted); font-size: 12.5px; line-height: 1.35; display: block; }
+.keuze.aan { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-zacht); }
+.keuze .vorm {
+  display: inline-block; border: 2px solid var(--ink); border-radius: 3px;
+  margin-bottom: 8px; vertical-align: bottom;
+}
+.merken .staal { display: flex; gap: 5px; margin-bottom: 8px; }
+.merken .staal i { width: 20px; height: 20px; border-radius: 5px; border: 1px solid rgba(0,0,0,.12); }
+
+/* ── lessen ──────────────────────────────────────────────────── */
+.lessen { display: grid; gap: 8px; }
+.les {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  border: 1px solid var(--lijn); background: var(--wit); border-radius: var(--radius);
+  padding: 12px 16px; cursor: pointer; text-align: left; font: inherit; width: 100%;
+}
+.les:hover { border-color: var(--accent); }
+.les b { display: block; }
+.les small { color: var(--muted); }
+
+/* ── beeld en selectie ───────────────────────────────────────── */
+.beeldhouder, .voorbeeldhouder {
+  position: relative; border: 1px solid var(--lijn); border-radius: var(--radius);
+  overflow: hidden; background: #101215; line-height: 0;
+}
+.beeldhouder { cursor: crosshair; }
+.beeldhouder img, .voorbeeldhouder img { width: 100%; display: block; user-select: none; }
+.voorbeeldhouder img { max-height: 62vh; object-fit: contain; background: #101215; }
+.selectie {
+  position: absolute; border: 2px solid var(--accent);
+  background: rgba(47,109,246,.16); pointer-events: none; border-radius: 4px;
+}
+.bezig {
+  position: absolute; inset: 0; background: rgba(255,255,255,.55);
+  backdrop-filter: blur(1px);
+}
+.bezig::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: 26px; height: 26px;
+  margin: -13px 0 0 -13px; border: 3px solid var(--lijn);
+  border-top-color: var(--accent); border-radius: 50%; animation: draai .8s linear infinite;
+}
+@keyframes draai { to { transform: rotate(360deg); } }
+
+/* strook die toont uit welke opname het huidige beeld komt */
+.clipbalk { display: flex; gap: 3px; margin-top: 10px; }
+.clipbalk div {
+  height: 22px; border-radius: 5px; background: var(--lijn); color: var(--grijs);
+  font-size: 11px; display: grid; place-items: center; overflow: hidden;
+  white-space: nowrap; cursor: pointer; padding: 0 6px;
+}
+.clipbalk div.aan { background: var(--accent); color: #fff; font-weight: 600; }
+
+.schuif { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+.schuif input[type=range] { flex: 1; accent-color: var(--accent); }
+.schuif span { font-variant-numeric: tabular-nums; color: var(--grijs); font-size: 13px;
+               min-width: 52px; }
+.acties { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ── lijst met elementen ─────────────────────────────────────── */
+.lijst { display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.item {
+  display: flex; align-items: center; gap: 10px; background: var(--wit);
+  border: 1px solid var(--lijn); border-radius: 10px; padding: 9px 12px; font-size: 13.5px;
+}
+.item .soort {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
+  padding: 3px 7px; border-radius: 5px; background: var(--accent-zacht);
+  color: var(--accent); font-weight: 700;
+}
+.item .tijd { font-variant-numeric: tabular-nums; color: var(--muted); cursor: pointer; }
+.item .tekst { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+               white-space: nowrap; cursor: text; }
+.item .weg { border: 0; background: none; color: var(--muted); cursor: pointer;
+             font-size: 17px; line-height: 1; padding: 0 2px; }
+.item .weg:hover { color: #c0392b; }
+
+/* ── voortgang ───────────────────────────────────────────────── */
+.voortgang { margin-top: 20px; max-width: 760px; }
+.balk { height: 8px; background: var(--lijn); border-radius: 99px; overflow: hidden; }
+.balk i { display: block; height: 100%; width: 0; background: var(--accent);
+          transition: width .3s ease; }
+.voortlabel { font-size: 13px; color: var(--grijs); margin: 8px 0; }
+.log {
+  background: var(--ink); color: #d7dde6; padding: 12px 14px; border-radius: 10px;
+  font-size: 12px; max-height: 220px; overflow: auto; white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0;
+}
+#resultaat { margin-top: 22px; }
+/* een staande reel mag niet uitgerekt worden tot de breedte van het vak */
+#resultaat video { max-width: 420px; max-height: 62vh; width: auto; height: auto;
+                   border-radius: var(--radius); background: #000; display: block; }
+#resultaat .pad-uit { font-size: 12.5px; color: var(--grijs); margin-top: 10px;
+                      word-break: break-all; }
+
+.meldingen { margin-top: 10px; display: grid; gap: 6px; }
+.melding { background: #fff8e6; border: 1px solid #f0dfae; color: #6b5518;
+           padding: 8px 11px; border-radius: 9px; font-size: 12.5px; }
+
+/* ── toast ───────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 11px 20px; border-radius: 10px;
+  font-size: 14px; z-index: 50; max-width: 80vw;
+}
+.toast.fout { background: #b3301f; }
+
+/* De server is weggevallen. Dit blijft staan tot je herlaadt — een toast van
+   zeven seconden mis je als je net naar je bestanden aan het zoeken bent. */
+#serverweg {
+  position: sticky; top: 0; z-index: 50;
+  background: #8c2f22; color: #fff; padding: 14px 18px; line-height: 1.5;
+  font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+#serverweg code {
+  background: rgba(0, 0, 0, .28); padding: 3px 8px; border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+}
+#serverweg button {
+  background: #fff; color: #8c2f22; border: 0; border-radius: 8px;
+  padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer;
+}
+
+/* Ondertitels bewerken: gewone tekstregels die pas bij focus een vak worden. */
+.subs { max-height: 340px; overflow-y: auto; }
+.subs .item { align-items: center; }
+.subs input {
+  border: 1px solid transparent; background: transparent; border-radius: 8px;
+  padding: 6px 8px; font: inherit; width: 100%; color: inherit;
+}
+.subs input:hover { border-color: var(--rand, #d8d2c8); }
+.subs input:focus { border-color: var(--accent, #2f6bff); background: var(--wit, #fff); outline: none; }
+.subs .tijd { cursor: pointer; white-space: nowrap; }
