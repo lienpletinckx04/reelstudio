@@ -359,6 +359,38 @@ Film je jezelf in de breedte en wil je toch het kader vullen? Zet dan
 `kader: vullen` en met `kader_midden` welk punt uit de opname in beeld moet
 blijven (coördinaten uit `frame --raster`, zie hieronder).
 
+### Privé-gegevens vervagen
+
+Een gsm-nummer, een mailadres, andere chats in je lijst: met `vervaag:` maak
+je ze onleesbaar vóór er iets anders bovenop komt. Het vlak wordt in het beeld
+zelf gebrand, dus een zoom maakt het niet opnieuw scherp en een highlight mag
+er gewoon over staan.
+
+```yaml
+vervaag:
+  - gebied: [0, 16, 497, 43]       # zonder van/tot: de hele video (statusbalk)
+  - van: 0:14
+    tot: 0:22
+    gebied: [22, 767, 356, 65]     # mailadres en nummer in dat bericht
+  - van: 0:30
+    tot: 0:34
+    gebied: [0, 120, 497, 900]     # de chatlijst terwijl je doorklikt
+    stijl: pixel                   # blur (standaard) | pixel | blok
+    sterkte: 1.5                   # optioneel: harder vervagen
+```
+
+Coördinaten lees je af zoals bij highlights, met `frame --raster`. Scrolt het
+scherm, dan verschuift wat privé is: zet dan per scrolstuk een eigen regel, of
+neem ruim een hele strook. Kijk het na met
+
+```bash
+./reelstudio.sh frame mijn-les 0:16 --vervaag
+```
+
+Dat beeld toont de vlakken van dat moment. Twijfel je, kies dan `blok`: een
+effen vlak laat niets over om terug te rekenen, een blur op kleine tekst soms
+wel iets.
+
 ### De eerste seconde
 
 ```yaml

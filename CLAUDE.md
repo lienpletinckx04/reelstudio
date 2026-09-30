@@ -54,6 +54,11 @@ met `./reelstudio.sh merk toon <naam>`.
    - `versnel`: de voorgestelde stiltes nakijken tegen de ondertitels (geen spraak
      binnen het venster!), marge 0.7 s. `knip` voor haperingen/versprekingen.
    - `intro_punten` = de 3–4 stappen in 1–2 woorden; `outro_titel/punten/volgende`.
+   - `vervaag`: alles wat privé is (gsm-nummer, mailadres, andere chats of
+     groepen, namen van anderen) krijgt een vlak. Zoek het actief op: loop de
+     opname door met `frame` en kijk elk scrol- of schermwissel na met
+     `frame <les> m:ss --vervaag`. Scrolt het scherm, dan per stuk een eigen regel.
+     Twijfel = `stijl: blok`.
    - `webcam`: de zone van het webcam-bubbeltje (meestal rechtsonder; de standaardwaarde
      klopt voor een Loom-opname op 1920×1080). Lees ze anders af uit een raster-frame.
 

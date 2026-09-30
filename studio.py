@@ -71,6 +71,7 @@ LIJSTEN = {
     "tips": ("van", "tekst", "duur", "label"),
     "prompts": ("van", "nummer", "titel", "tekst"),
     "versnel": ("van", "tot", "factor"),
+    "vervaag": ("van", "tot", "gebied", "stijl", "sterkte"),
     "knip": ("van", "tot"),
 }
 KOP = ("formaat", "titel", "reeks", "merk", "bron", "ondertitels", "van", "tot",

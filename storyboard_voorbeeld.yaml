@@ -30,6 +30,15 @@ stappen: []
 #  - van: 1:03
 #    titel: Kies het krachtigste model
 
+# ── vervaag: privé-gegevens onleesbaar maken ──────────────────────
+#   gebied: [x, y, breedte, hoogte]   zonder van/tot = de hele video
+#   stijl: blur | pixel | blok        sterkte: 1 (optioneel)
+#   nakijken: ./reelstudio.sh frame <les> 0:16 --vervaag
+vervaag: []
+#  - van: 0:14
+#    tot: 0:22
+#    gebied: [22, 767, 356, 65]
+
 # ── highlights: spotlight + rand + label rond een stuk scherm ─────
 #   gebied: [x, y, breedte, hoogte]   zoom: 1.5 (optioneel)   dim: nee (optioneel)
 #   label: auto | boven | onder

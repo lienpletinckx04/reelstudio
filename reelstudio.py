@@ -1830,6 +1830,85 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         yexpr = "+".join(yparts)
         return f"zoompan=z='{zexpr}':x='{xexpr}':y='{yexpr}':d=1:s={self.W}x{self.H}:fps={FPS}"
 
+    def vervaag_stukken(self):
+        """De `vervaag:`-regels als (A, B, x, y, w, h, stijl, sterkte) in het uitvoerkader.
+
+        Privégegevens (een gsm-nummer, een mailadres, andere gesprekken) moeten
+        onleesbaar zijn vóór er iets bovenop komt. Tijden staan op de tijdlijn,
+        gebieden in de bronruimte, net als bij highlights. Loopt een regel over
+        meerdere clips, dan krijgt elke clip zijn eigen stuk met zijn eigen
+        kader — anders schuift het vlak bij een andere opname naast het nummer.
+        Zonder van/tot geldt de regel voor de hele video: handig voor een
+        statusbalk of een naam bovenaan die er altijd staat.
+        """
+        uit = []
+        for i, v in enumerate(self.sb.get("vervaag") or [], 1):
+            if not isinstance(v, dict) or "gebied" not in v:
+                self.waarschuwingen.append(f"vervaag {i} zonder gebied overgeslagen")
+                continue
+            g = v["gebied"]
+            if not isinstance(g, (list, tuple)) or len(g) != 4:
+                self.waarschuwingen.append(f"vervaag {i}: gebied moet [x, y, breedte, hoogte] zijn")
+                continue
+            a = ptime(v.get("van")) if v.get("van") is not None else 0.0
+            b = ptime(v.get("tot")) if v.get("tot") is not None else self.duur
+            if a is None or b is None or b <= a:
+                self.waarschuwingen.append(f"vervaag {i}: van/tot klopt niet — overgeslagen")
+                continue
+            stijl = str(v.get("stijl", "blur")).lower()
+            if stijl not in ("blur", "blok", "pixel"):
+                self.waarschuwingen.append(f"vervaag {i}: stijl '{stijl}' bestaat niet — blur gebruikt")
+                stijl = "blur"
+            sterkte = float(v.get("sterkte", 1) or 1)
+            for c in self.clips:
+                ca, cb = max(a, c.start), min(b, c.einde)
+                if cb - ca < 0.02:
+                    continue
+                x, y, w, h = c.kader.gebied(g)
+                # binnen het kader houden en op even pixels leggen (yuv420p)
+                x0, y0 = max(0, int(x) // 2 * 2), max(0, int(y) // 2 * 2)
+                x1 = min(self.W, int(math.ceil(x + w) + 1) // 2 * 2)
+                y1 = min(self.H, int(math.ceil(y + h) + 1) // 2 * 2)
+                if x1 - x0 < 4 or y1 - y0 < 4:
+                    self.waarschuwingen.append(
+                        f"vervaag {i} op {ftime(ca)} valt buiten het {self.formaat}-kader — overgeslagen")
+                    continue
+                uit.append((ca, cb, x0, y0, x1 - x0, y1 - y0, stijl, sterkte))
+        return uit
+
+    def vervaag_filters(self, invoer):
+        """Filterketen die de vervaag-vlakken in het beeld brandt.
+
+        Dit gebeurt op het beeld zelf, vóór de zoom en vóór de overlays: een
+        zoom mag het nummer niet opnieuw scherp maken, en een highlight of
+        label mag er wel bovenop staan. Geeft (filters, uitgangslabel).
+        """
+        stukken = self.vervaag_stukken()
+        if not stukken:
+            return [], invoer
+        fc, cur = [], invoer
+        blok = "0x" + self.kleur(self.merk.get("vervaag_kleur", "ink")).lstrip("#")
+        for i, (a, b, x, y, w, h, stijl, sterkte) in enumerate(stukken):
+            if stijl == "blok":
+                aan = f"between(t,{a:.3f},{b:.3f})"
+                fc.append(f"{cur}drawbox=x={x}:y={y}:w={w}:h={h}:color={blok}:t=fill:enable='{aan}'[vz{i}]")
+            else:
+                if stijl == "pixel":
+                    # grove blokjes: zo groot dat een regel tekst er twee of drie wordt
+                    blokje = max(12.0, min(w, h) / 6) * sterkte
+                    kw, kh = max(2, int(w / blokje)), max(2, int(h / blokje))
+                    bewerk = f"scale={kw}:{kh}:flags=area,scale={w}:{h}:flags=neighbor"
+                else:
+                    # sterk genoeg dat tekst ook op een telefoon niet te raden is;
+                    # tweemaal blurren haalt de randen van letters beter weg
+                    sigma = max(6.0, min(w, h) * 0.18 * sterkte, 18 * self.s * sterkte)
+                    bewerk = f"gblur=sigma={sigma:.1f}:steps=3,gblur=sigma={sigma:.1f}:steps=3"
+                fc.append(f"{cur}split[vo{i}][vk{i}]")
+                fc.append(f"[vk{i}]crop={w}:{h}:{x}:{y},{bewerk}[vb{i}]")
+                fc.append(f"[vo{i}][vb{i}]overlay={x}:{y}:enable='between(t,{a:.3f},{b:.3f})'[vz{i}]")
+            cur = f"[vz{i}]"
+        return fc, cur
+
     def _bg_input(self, welke, duur, bg_path):
         """Input-argumenten voor de intro/outro-achtergrond."""
         if self.stijl == "editorial":
@@ -1872,6 +1951,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             bron_v, bron_a = "[bron_v]", "[bron_a]"
         else:
             bron_v, bron_a = clip_v[0], clip_a[0]
+
+        vf_vervaag, bron_v = self.vervaag_filters(bron_v)
+        fc += vf_vervaag
 
         segs = self.tl.segs
         N = len(segs)
@@ -2038,6 +2120,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         print(f"Overlays: {len(self.events)} ASS-events, {getattr(self, 'n_subs', 0)} ondertitels, "
               f"{len(self.sb.get('stappen') or [])} stappen, {len(self.sb.get('highlights') or [])} highlights "
               f"({len(self.zooms)} met zoom), {len(self.sb.get('tips') or [])} tips, {len(self.sb.get('prompts') or [])} prompts")
+        stukken = self.vervaag_stukken()
+        if stukken:
+            print(f"Vervaagd: {len(stukken)} vlak(ken)")
+            for a, b, x, y, w, h, stijl, _ in stukken:
+                print(f"  {ftime(a)}–{ftime(b)}  {stijl:<5} {w}x{h} op ({x},{y})")
         for w in self.waarschuwingen:
             print(f"  ! {w}")
 
@@ -2101,17 +2188,46 @@ def cmd_frame(args):
     bron, t_lokaal = c.pad, c.lokaal(t)
     sb = b.sb
     os.makedirs(os.path.join(lesdir, "frames"), exist_ok=True)
-    out = os.path.join(lesdir, "frames", f"t{int(t)}{'_raster' if args.raster else ''}.png")
-    creme = laad_merk((sb or {}).get("merk", STANDAARD_MERK)).get("creme", "#fff8f2")
-    vf = normaliseer_vf(creme)
+    naam = f"t{int(t)}{'_raster' if args.raster else ''}{'_vervaagd' if args.vervaag else ''}.png"
+    out = os.path.join(lesdir, "frames", naam)
+    # Alleen de bron, passend in 1920x1080 en zonder balken erlangs: de
+    # coördinaten van het storyboard beginnen linksboven in de opname zelf
+    # (zo rekent Kader, en zo tekent de studio). Bij een staande telefoonopname
+    # gaf een raster mét balken anders getallen die honderden pixels naast
+    # het echte gebied lagen.
+    bw, bh = c.kader.bron_w, c.kader.bron_h
+    vf = f"scale={int(round(bw))}:{int(round(bh))}:flags=lanczos,setsar=1"
+    if args.vervaag:
+        # dezelfde vlakken als in de render, zodat je kunt nakijken of alles
+        # wat privé is ook echt weg is
+        n = 0
+        for v in sb.get("vervaag") or []:
+            if not isinstance(v, dict) or not isinstance(v.get("gebied"), (list, tuple)):
+                continue
+            a = ptime(v.get("van")) if v.get("van") is not None else 0.0
+            e = ptime(v.get("tot")) if v.get("tot") is not None else b.duur
+            if not (a <= t <= e):
+                continue
+            gx, gy, gw, gh = (float(x) for x in v["gebied"])
+            x0, y0 = max(0, int(gx) // 2 * 2), max(0, int(gy) // 2 * 2)
+            x1 = min(int(bw) // 2 * 2, int(math.ceil(gx + gw) + 1) // 2 * 2)
+            y1 = min(int(bh) // 2 * 2, int(math.ceil(gy + gh) + 1) // 2 * 2)
+            if x1 - x0 < 4 or y1 - y0 < 4:
+                continue
+            w_, h_ = x1 - x0, y1 - y0
+            sigma = max(6.0, min(w_, h_) * 0.18)
+            vf += (f",split[o{n}][k{n}];[k{n}]crop={w_}:{h_}:{x0}:{y0},"
+                   f"gblur=sigma={sigma:.1f}:steps=3,gblur=sigma={sigma:.1f}:steps=3[b{n}];"
+                   f"[o{n}][b{n}]overlay={x0}:{y0}")
+            n += 1
     if args.raster:
         # lijnen om de 100 px + cijfers, zodat je coördinaten kunt aflezen
         parts = [vf]
-        for x in range(100, W, 100):
-            parts.append(f"drawbox=x={x}:y=0:w=1:h={H}:color=red@0.5")
+        for x in range(100, int(bw), 100):
+            parts.append(f"drawbox=x={x}:y=0:w=1:h=ih:color=red@0.5")
             parts.append(f"drawtext=text='{x}':x={x+3}:y=4:fontsize=18:fontcolor=red:box=1:boxcolor=white@0.6")
-        for y in range(100, H, 100):
-            parts.append(f"drawbox=x=0:y={y}:w={W}:h=1:color=red@0.5")
+        for y in range(100, int(bh), 100):
+            parts.append(f"drawbox=x=0:y={y}:w=iw:h=1:color=red@0.5")
             parts.append(f"drawtext=text='{y}':x=4:y={y+3}:fontsize=18:fontcolor=red:box=1:boxcolor=white@0.6")
         vf = ",".join(parts)
     r = subprocess.run([FF, "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{t_lokaal:.3f}", "-i", bron,
@@ -2721,6 +2837,12 @@ def cmd_reel(args):
     highlights = [x for x in (sb.get("highlights") or []) if binnen(ptime(x.get("van")))]
     tips = [x for x in (sb.get("tips") or []) if binnen(ptime(x.get("van")))]
     prompts = [x for x in (sb.get("prompts") or []) if binnen(ptime(x.get("van")))]
+    # vervagen gaat altijd mee als het fragment raakt, ook als het ervoor
+    # begint: een nummer dat in de les onleesbaar is, moet dat in de reel ook zijn
+    vervaag = [x for x in (sb.get("vervaag") or []) if isinstance(x, dict)
+               and (ptime(x.get("van")) if x.get("van") is not None else 0.0) < tot
+               and (ptime(x.get("tot")) if x.get("tot") is not None else duur) > van]
+
     def bijknippen(rij, a_sleutel, b_sleutel):
         """Een versnelling of knip die buiten het fragment doorloopt inkorten."""
         uit = []
@@ -2804,6 +2926,7 @@ outro_volgende: "{args.cta}"
         tekst += f"webcam: [{', '.join(str(v) for v in sb['webcam'])}]\n"
     tekst += blok("stappen", stappen, ("van", "titel", "nummer", "label", "duur"))
     tekst += blok("highlights", highlights, ("van", "tot", "gebied", "tekst", "zoom", "dim", "label"))
+    tekst += blok("vervaag", vervaag, ("van", "tot", "gebied", "stijl", "sterkte"))
     tekst += blok("tips", tips, ("van", "tekst", "duur", "label"))
     tekst += blok("prompts", prompts, ("van", "nummer", "titel", "tekst"))
     tekst += blok("versnel", versnel, ("van", "tot", "factor"))
@@ -3157,6 +3280,7 @@ def main():
 
     p = sub.add_parser("frame", help="bewaar een beeld (optioneel met raster voor coördinaten)")
     p.add_argument("les"); p.add_argument("tijd"); p.add_argument("--raster", action="store_true")
+    p.add_argument("--vervaag", action="store_true", help="toon de vervaag-vlakken van dat moment")
     p.set_defaults(fn=cmd_frame)
 
     args = ap.parse_args()
