@@ -111,6 +111,55 @@ def groepeer_woorden(woorden, max_woorden=3, max_tekens=17, pauze=0.35):
     return groepen
 
 
+# ── versprekingen en stopwoorden ────────────────────────────────────
+VULWOORDEN = {"euh", "euhm", "uh", "uhm", "um", "ehm", "eh", "ehh", "hmm", "mmm"}
+
+
+def _kaal(w):
+    return re.sub(r"[^\w]", "", w.lower())
+
+
+def vind_versprekingen(woorden, venster_s=5.0):
+    """Vulwoorden, dubbele woorden en herstarts → [(van, tot)] om weg te knippen.
+
+    - "euh", "uhm": weg.
+    - "ik ik plan": het eerste "ik" weg.
+    - herstart: zegt iemand twee woorden en begint dan binnen een paar
+      seconden opnieuw met dezelfde twee ("ik plan ... ik plan alles zelf"),
+      dan vervalt de mislukte poging tot waar de goede begint.
+
+    Bewust voorzichtig: liever een stuk te weinig knippen dan een zin
+    afbreken. Wat het knipt staat in het storyboard en kan je daar terugzetten.
+    """
+    kaal = [_kaal(w[2]) for w in woorden]
+    knips = []
+    i = 0
+    while i < len(woorden):
+        a, b, _ = woorden[i]
+        if kaal[i] in VULWOORDEN:
+            knips.append((a - 0.02, b + 0.03))
+            i += 1
+            continue
+        if i + 1 < len(woorden) and kaal[i] and kaal[i] == kaal[i + 1] and len(kaal[i]) <= 6:
+            knips.append((a - 0.02, woorden[i + 1][0] - 0.03))
+            i += 1
+            continue
+        herstart = None
+        if i + 1 < len(woorden) and len(kaal[i]) + len(kaal[i + 1]) >= 5:
+            for j in range(i + 2, min(i + 8, len(woorden) - 1)):
+                if woorden[j][0] - a > venster_s:
+                    break
+                if kaal[j] == kaal[i] and kaal[j + 1] == kaal[i + 1]:
+                    herstart = j
+                    break
+        if herstart is not None:
+            knips.append((a - 0.02, woorden[herstart][0] - 0.04))
+            i = herstart
+            continue
+        i += 1
+    return [(round(max(0.0, x), 3), round(y, 3)) for x, y in knips if y - x >= 0.08]
+
+
 # ── auto-zoom ───────────────────────────────────────────────────────
 ZOOM_NIVEAUS = {
     # (factor, om de hoeveel stukken er ingezoomd wordt)
@@ -226,6 +275,11 @@ def feedback_naar_wijzigingen(tekst, huidig):
     elif re.search(r"caption\w*.*(omlaag|lager|down|lower)|(omlaag|lager|down|lower).*caption", t):
         w["captions_hoogte"] = round(float(huidig.get("captions_hoogte", 0.64)) + 0.06, 2)
         uitleg.append("captions lager")
+    if re.search(r"(een|1|één|one)\s+woord|one word", t):
+        w["captions_woorden"] = 1; uitleg.append("één woord per keer")
+    elif re.search(r"meer woorden|more words|twee woorden|2 woorden", t):
+        w["captions_woorden"] = 2 if "twee" in t or "2" in t else 3
+        uitleg.append("meer woorden tegelijk")
     if re.search(r"(kleinere|smaller|smaller captions|captions kleiner)", t):
         w["captions_grootte"] = round(float(huidig.get("captions_grootte", 1.0)) - 0.12, 2)
         uitleg.append("captions kleiner")

@@ -14,16 +14,18 @@ Je filmt jezelf, Reelstudio doet de montage. Film → `yap` → kijken → bijst
 
 | Onderdeel | Hoe |
 |---|---|
+| **Versprekingen eruit** | "euh", dubbele woorden ("ik ik") en herstarts (je zegt een zin, begint opnieuw) worden uit de woordtiming gehaald; wat geknipt is staat in het storyboard (`--bewaar-versprekingen` zet het uit) |
 | **Pauzes eruit** | stiltes ≥ 0,35 s worden weggeknipt, 0,12 s blijft staan zodat het menselijk blijft; stilte vooraan en achteraan verdwijnt helemaal (`--pauze`, `--drempel`) |
-| **Captions per woord** | 1–3 woorden tegelijk, het gesproken woord in je accentkleur, groot en met rand (whisper per woord; zonder whisper schat hij de timing uit zinnen) |
+| **Captions per woord** | standaard één woord per keer (`--woorden 2` of `captions_woorden: 3` voor meer), het gesproken woord in je accentkleur, het gesproken woord in je accentkleur, groot en met rand (whisper per woord; zonder whisper schat hij de timing uit zinnen) |
 | **Zoomsprongen** | op de sneden: zoom vlot in bij een nieuw stuk, hard terug bij de volgende snede (`--zoom geen|weinig|normaal|veel`) |
 | **Hook** | één regel boven het beeld in de eerste 2,6 s |
 | **Koppen** | headline-stickers (`koppen:` in het storyboard), schuin, in je accentkleur |
 | **Geluid** | zachte whoosh bij elke zoomsprong, pop bij elke kop — gemaakt door ffmpeg zelf, geen bestanden nodig (`geluid: nee` zet het uit) |
 | **Eindkaart** | jouw CTA in je merk, 3 s |
+| **Helderder beeld** | `look: helder`: automatische niveaus, wat meer kleur en scherpte (trager renderen); `look: warm` voor een warmere huid |
 | **Merk** | kleuren, lettertype, wordmark uit `merk/<naam>.yaml` |
 
-Niet gedaan: achtergrond vervangen of opruimen. Dat vraagt een segmentatiemodel en
+Niet gedaan: achtergrond zacht maken of opruimen, en geanimeerde graphics. Dat vraagt een segmentatiemodel en
 breekt de regel dat alles lokaal en zonder pakketten werkt. Een `look: warm` en een
 net kader komen ver; wil je het toch, dan is dat een aparte stap vóór `yap`.
 
@@ -32,7 +34,7 @@ net kader komen ver; wil je het toch, dan is dat een aparte stap vóór `yap`.
 `./reelstudio.sh bijsturen <reel> "<zin>"` past het storyboard aan én schrijft het naar
 `yap-voorkeuren.yaml`. Je volgende reel begint dus al met jouw smaak.
 
-Herkend (NL en EN): minder / meer / geen zooms · geen geluidseffecten · captions
+Herkend (NL en EN): één woord per keer / meer woorden · minder / meer / geen zooms · geen geluidseffecten · captions
 hoger / lager · grotere / kleinere captions · hoofdletters aan / uit.
 
 ## Wat Claude doet als je een opname aanlevert

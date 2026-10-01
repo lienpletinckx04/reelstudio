@@ -1528,6 +1528,12 @@ class Bouwer:
         look = str(self.sb.get("look", "naturel")).lower()
         if look in ("naturel", "geen", "nee", ""):
             return ""
+        if look == "helder":
+            # automatische niveaus (zwart- en witpunt volgen het beeld, rustig
+            # over de tijd), iets meer kleur en een zweem scherpte
+            return (",normalize=blackpt=black:whitept=white:smoothing=45:independence=0"
+                    ",eq=brightness=0.02:saturation=1.08:contrast=1.03"
+                    ",unsharp=5:5:0.4:5:5:0.0")
         if look == "warm":
             return (",hqdn3d=1.5:1.5:3:3"
                     ",colortemperature=temperature=5800:pl=0.85"
@@ -2139,11 +2145,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         caps = bool(self.sb.get("captions_caps", True))
         hoogte = float(self.sb.get("captions_hoogte", 0.64))
         maxw = self.ondertitelbreedte
-        em0 = self.tem(66) * grootte
+        # één woord per keer mag groter: er is ruimte genoeg
+        em0 = self.tem(66) * grootte * (1.3 if int(self.sb.get("captions_woorden", 3)) == 1 else 1.0)
         y_mid = min(self.H * hoogte, self.H - self.veilig_onder - em0)
         cx = self.W / 2
         rand = max(3, round(em0 * 0.11))
-        groepen = yap.groepeer_woorden(woorden)
+        n_woorden = max(1, int(self.sb.get("captions_woorden", 3)))
+        groepen = yap.groepeer_woorden(woorden, max_woorden=n_woorden)
         for gi, groep in enumerate(groepen):
             # de laatste stand blijft even hangen, maar nooit tot over de volgende groep heen
             limiet = self.T(groepen[gi + 1][0][0]) if gi + 1 < len(groepen) else None
@@ -2167,7 +2175,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     continue
                 delen = []
                 for j, t in enumerate(teksten):
-                    if j == i:
+                    # bij één woord per keer is "het actieve woord" elk woord: dan
+                    # kleuren we alleen cijfers, anders is de hele reel oranje
+                    actief = (j == i) if len(groep) > 1 else bool(re.search(r"\d", t))
+                    if actief:
                         delen.append(f"{{{self.c('accent')}\\fscx108\\fscy108}}{esc(t)}{{{self.c('creme')}\\fscx100\\fscy100}}")
                     else:
                         delen.append(esc(t))
@@ -3166,6 +3177,14 @@ def cmd_yap(args):
                     fh.write(f"{i}\n{srt_time(a)} --> {srt_time(b)}\n{t.strip()}\n\n")
             print(f"→ woorden.srt ({len(cues)} woorden) — lees na of er iets verkeerd verstaan is")
 
+    # ── versprekingen en stopwoorden (op basis van de woorden) ──
+    if os.path.exists(woorden) and not args.bewaar_versprekingen:
+        fouten = yap.vind_versprekingen(yap.lees_woorden(woorden))
+        if fouten:
+            knips = sorted(knips + fouten)
+            print(f"→ {len(fouten)} versprekingen/stopwoorden weggeknipt "
+                  f"({ftime(sum(b - a for a, b in fouten))}) — ze staan in het storyboard, haal ze weg als ze niet kloppen")
+
     # ── storyboard ──
     r = []
     r.append(f"titel: {args.hook or naam.replace('-', ' ').title()}")
@@ -3180,6 +3199,7 @@ def cmd_yap(args):
         r.append(f"hook: {args.hook}")
         r.append("hook_duur: 2.6")
     r.append("captions: woord")
+    r.append(f"captions_woorden: {args.woorden or voorkeur.get('captions_woorden', 1)}")
     for sl in ("captions_hoogte", "captions_grootte", "captions_caps", "geluid"):
         if sl in voorkeur:
             v = voorkeur[sl]
@@ -3224,7 +3244,7 @@ def cmd_bijsturen(args):
     voorkeur = yap.lees_voorkeuren(voorkeur_pad)
     huidig = dict(voorkeur)
     huidig.update({k: sb[k] for k in ("autozoom", "geluid", "captions_hoogte",
-                                      "captions_grootte", "captions_caps") if k in sb})
+                                      "captions_grootte", "captions_caps", "captions_woorden") if k in sb})
     wijz, uitleg = yap.feedback_naar_wijzigingen(" ".join(args.tekst), huidig)
     if not wijz:
         die("dat heb ik niet begrepen. Wat ik herken: minder/meer/geen zooms, "
@@ -3425,6 +3445,9 @@ def main():
     p.add_argument("--drempel", default="-35", help="onder dit niveau (dB) telt als stilte")
     p.add_argument("--taal", default="nl")
     p.add_argument("--woordenlijst", help="hint voor whisper (eigen namen)")
+    p.add_argument("--bewaar-versprekingen", dest="bewaar_versprekingen", action="store_true",
+                   help="alleen pauzes knippen, geen versprekingen of stopwoorden")
+    p.add_argument("--woorden", type=int, default=None, help="woorden per caption (standaard 1)")
     p.add_argument("--link", action="store_true", help="symlink i.p.v. kopie van de bron")
     p.add_argument("--overschrijf", action="store_true")
     p.add_argument("--render", action="store_true", help="meteen renderen")
