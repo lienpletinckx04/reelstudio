@@ -36,3 +36,6 @@ __pycache__/
 
 # cache van de bestandenkiezer
 .miniaturen/
+
+# wat je via `bijsturen` over jouw smaak leert (persoonlijk)
+yap-voorkeuren.yaml

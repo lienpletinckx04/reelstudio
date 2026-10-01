@@ -28,6 +28,7 @@ sys.path.insert(0, HERE)
 import omgeving  # noqa: E402
 from miniyaml import load as yload, YamlFout  # noqa: E402
 from fontmetrics import haal_font  # noqa: E402
+import yap  # noqa: E402
 
 W, H, FPS = 1920, 1080, 30          # standaardformaat (liggend)
 BRON_W, BRON_H = 1920, 1080         # de ruimte waarin storyboard-coördinaten staan
@@ -203,7 +204,7 @@ def eis_ffmpeg(overlays=True):
 
 #  Commando's die daadwerkelijk ondertitels of kaarten op het beeld zetten.
 #  De rest (nieuw, studio, frame, merk lijst) komt met elke ffmpeg toe.
-TEKENT_OVERLAYS = {"render", "check", "proef", "reel", "merk", "broll"}
+TEKENT_OVERLAYS = {"render", "check", "proef", "reel", "merk", "broll"}   # yap: alleen met --render
 
 GEEN_LIBASS = (
     "deze ffmpeg kan geen overlays tekenen (gebouwd zonder libass).\n"
@@ -803,6 +804,8 @@ class Bouwer:
 
         self.events = []   # (layer, start, end, text)
         self.zooms = []    # (t0, t1, factor, cx, cy) in brontijd
+        self.zoom_ramps = {}   # (t0, t1) -> (in, uit) wanneer een zoom anders dan RAMP moet
+        self.sfx = []      # (soort, uitvoertijd) — geluidseffecten, zie yap.sfx_bronnen
 
     # ── kleuren ───────────────────────────────────────────────────
     def kleur(self, naam):
@@ -1820,8 +1823,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         T = f"(in/{FPS})"
         zparts, xparts, yparts = [], [], []
         for t0, t1, z, cx, cy in self.zooms:
-            s_in = f"st(0,clip(({T}-{t0:.3f})/{RAMP},0,1))*ld(0)*(3-2*ld(0))"
-            s_out = f"st(1,clip(({T}-{t1-RAMP:.3f})/{RAMP},0,1))*ld(1)*(3-2*ld(1))"
+            r_in, r_uit = self.zoom_ramps.get((t0, t1), (RAMP, RAMP))
+            s_in = f"st(0,clip(({T}-{t0:.3f})/{r_in:.3f},0,1))*ld(0)*(3-2*ld(0))"
+            s_out = f"st(1,clip(({T}-{t1-r_uit:.3f})/{r_uit:.3f},0,1))*ld(1)*(3-2*ld(1))"
             zparts.append(f"({z-1:.4f})*(({s_in})-({s_out}))")
             xparts.append(f"between({T},{t0:.3f},{t1:.3f})*clip({cx:.1f}-iw/zoom/2,0,iw-iw/zoom)")
             yparts.append(f"between({T},{t0:.3f},{t1:.3f})*clip({cy:.1f}-ih/zoom/2,0,ih-ih/zoom)")
@@ -1927,7 +1931,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         ass_esc = ass_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
         fd_esc = fontsdir.replace(":", "\\:")
         fc.append(f"[vc]{post},ass=filename='{ass_esc}':fontsdir='{fd_esc}'[vout]")
-        fc.append("[ac]loudnorm=I=-16:TP=-1.5:LRA=11[aout]")
+        fc.append(self._audio_afwerking(inputs, nin))
         cmd = inputs + ["-filter_complex", ";".join(fc), "-map", "[vout]", "-map", "[aout]"]
         codec = str(self.sb.get("codec", "auto"))
         if codec != "auto" and not self.preview:
@@ -2005,13 +2009,186 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                           f"{self.font_tag('titel')}\\fs{fsv:.0f}{sp}\\bord0\\shad0{self.c(k)}}}{esc(regel)}",
                     layer=45)
 
+    # ═══════════════════════════════════════════════════════════════
+    #  Praatreels: captions per woord, auto-zoom, koppen, geluid
+    # ═══════════════════════════════════════════════════════════════
+    def _audio_afwerking(self, inputs, nin):
+        """Loudnorm op de spraak, daarna de geluidseffecten erbij.
+
+        De effecten komen ná het normaliseren: anders trekt loudnorm ze mee
+        omhoog en staat een whoosh opeens luider dan je stem.
+        """
+        norm = "[ac]loudnorm=I=-16:TP=-1.5:LRA=11"
+        if not self.sfx or not self.sb.get("geluid", True):
+            return norm + "[aout]"
+        bronnen = yap.sfx_bronnen()
+        delen, mixin = [norm + "[aln]"], ["[aln]"]
+        for soort, bron in bronnen.items():
+            tijden = sorted(t for k, t in self.sfx if k == soort)
+            if not tijden:
+                continue
+            lavfi, keten = bron
+            inputs += ["-f", "lavfi", "-i", lavfi]
+            i = nin; nin += 1
+            n = len(tijden)
+            basis = (f"[{i}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,"
+                     f"{keten}")
+            if n == 1:
+                delen.append(f"{basis}[{soort}0]")
+            else:
+                delen.append(basis + f",asplit={n}" + "".join(f"[{soort}{j}]" for j in range(n)))
+            for j, t in enumerate(tijden):
+                ms = max(0, int(t * 1000))
+                delen.append(f"[{soort}{j}]adelay={ms}|{ms}[{soort}d{j}]")
+                mixin.append(f"[{soort}d{j}]")
+        delen.append("".join(mixin) + f"amix=inputs={len(mixin)}:normalize=0:duration=first[aout]")
+        return ";".join(delen)
+
+    def bouw_autozoom(self):
+        """Zoomsprongetjes op de sneden (zie yap.plan_zooms)."""
+        niveau = str(self.sb.get("autozoom", "nee")).lower()
+        if niveau in ("nee", "false", "geen", "uit"):
+            return
+        if niveau not in yap.ZOOM_NIVEAUS:
+            self.waarschuwingen.append(
+                f"autozoom: '{niveau}' onbekend — kies uit {', '.join(yap.ZOOM_NIVEAUS)}")
+            return
+        mid = self.sb.get("zoom_midden") or [self.W / 2, self.H * 0.42]
+        geluid = bool(self.sb.get("geluid", True))
+        bezet = [(t0, t1) for t0, t1, *_ in self.zooms]
+        for t0, t1, z, cx, cy, r_in in yap.plan_zooms(self.tl.segs, niveau, (float(mid[0]), float(mid[1]))):
+            if any(t0 < b and t1 > a for a, b in bezet):
+                continue            # een highlight-zoom wint van een automatische
+            self.zooms.append((t0, t1, z, cx, cy))
+            self.zoom_ramps[(t0, t1)] = (r_in, 0.01)
+            bezet.append((t0, t1))
+            if geluid and z >= 1.1:
+                self.sfx.append(("whoosh", max(0.0, self.T(t0) - 0.06)))
+
+    def bouw_koppen(self):
+        """Headline-stickers: een korte, schuin geplakte kaart met een zin.
+
+        Staan in `koppen:` van het storyboard (van, tot, tekst). Elke kop
+        zoekt zijn plek in de band boven het beeld en schuift op in de tijd
+        als hook of stapkaart er al staan.
+        """
+        koppen = yap.lees_koppen(self.sb.get("koppen"), ptime)
+        if not koppen:
+            return
+        f = self.f_titel
+        em = self.tem(54)
+        fsv = self.fs(f, em)
+        lh = f.line_height(fsv) * 0.98
+        padx, pady = 30 * self.ts, 18 * self.ts
+        maxw = self.W - 2 * self.marge - 2 * padx - 60 * self.s
+        radius = float(self.merk.get("radius_knop", 10)) * self.ts
+        geluid = bool(self.sb.get("geluid", True))
+        for i, (a, b, tekst) in enumerate(koppen):
+            A, B = self.T(a), self.T(b)
+            lines = wrap_balanced(tekst, f, fsv, maxw)
+            wmax = max(f.width(l, fsv) for l in lines)
+            pw, ph = wmax + 2 * padx, len(lines) * lh + 2 * pady
+            y, start = self.plaats_boven(A, B, ph + 30 * self.s, min_duur=1.0)
+            if y is None:
+                self.waarschuwingen.append(f"kop '{tekst[:30]}' past nergens — overgeslagen")
+                continue
+            A = start
+            cx = self.W / 2
+            cy = y + ph / 2
+            hoek = -3 if i % 2 == 0 else 3
+            pop = "\\fscx90\\fscy90\\t(0,200,\\fscx100\\fscy100)"
+            self.ev(A, B, f"{{\\an7\\pos({cx:.1f},{cy:.1f})\\frz{hoek}\\fad(120,200){pop}\\bord0\\shad0"
+                          f"{self.c('accent')}\\p1}}{rrect(-pw/2, -ph/2, pw, ph, min(radius + 4, ph / 2))}{{\\p0}}", layer=46)
+            kl = "wit"
+            for j, regel in enumerate(lines):
+                dy = (j - (len(lines) - 1) / 2) * lh
+                self.ev(A, B, f"{{\\an5\\org({cx:.1f},{cy:.1f})\\pos({cx:.1f},{cy + dy:.1f})\\frz{hoek}\\fad(120,200){pop}"
+                              f"{self.font_tag('titel')}\\fs{fsv:.0f}\\bord0\\shad0{self.c(kl)}}}{esc(regel)}", layer=47)
+            self.bezet_boven.append((A, B, y + ph + 30 * self.s))
+            if geluid:
+                self.sfx.append(("pop", A))
+
+    def bouw_woordcaptions(self):
+        """Eén stukje van 1–3 woorden tegelijk, het gesproken woord in accent.
+
+        Zo ziet een reel eruit waarbij je blijft kijken: groot, in het midden
+        van het scherm, en het oog volgt de stem. Woorden uit weggeknipte
+        stukken vallen weg, de rest schuift mee op de nieuwe tijdlijn.
+        """
+        pad = os.path.join(self.lesdir, "woorden.srt")
+        if os.path.exists(pad):
+            woorden = yap.lees_woorden(pad)
+        else:
+            zinnen = os.path.join(self.lesdir, self.sb.get("ondertitels", "ondertitels.srt"))
+            if not os.path.exists(zinnen):
+                self.waarschuwingen.append(
+                    "geen woorden.srt of ondertitels.srt — captions overgeslagen "
+                    "(./reelstudio.sh transcribeer <les> maakt ze)")
+                return
+            woorden = yap.woorden_uit_cues(read_srt(zinnen))
+            self.waarschuwingen.append(
+                "woorden.srt ontbreekt: woordtiming geschat uit de zinnen "
+                "(met whisper is ze exact)")
+        lo, hi = self.tl.lo, self.tl.hi
+        woorden = [w for w in yap.woorden_zonder_geknipte(woorden, self.knips) if lo <= w[0] < hi]
+        if not woorden:
+            return
+        m = self.merk
+        f = self.f_titel
+        grootte = float(self.sb.get("captions_grootte", 1.0))
+        caps = bool(self.sb.get("captions_caps", True))
+        hoogte = float(self.sb.get("captions_hoogte", 0.64))
+        maxw = self.ondertitelbreedte
+        em0 = self.tem(66) * grootte
+        y_mid = min(self.H * hoogte, self.H - self.veilig_onder - em0)
+        cx = self.W / 2
+        rand = max(3, round(em0 * 0.11))
+        groepen = yap.groepeer_woorden(woorden)
+        for gi, groep in enumerate(groepen):
+            # de laatste stand blijft even hangen, maar nooit tot over de volgende groep heen
+            limiet = self.T(groepen[gi + 1][0][0]) if gi + 1 < len(groepen) else None
+            teksten = [(w[2].upper() if caps else w[2]) for w in groep]
+            zin = " ".join(teksten)
+            em = em0
+            fsv = self.fs(f, em)
+            while f.width(zin, fsv) > maxw and em > em0 * 0.5:
+                em *= 0.93
+                fsv = self.fs(f, em)
+            # elke staat is een eigen regel: het actieve woord in accent en iets groter
+            for i, w in enumerate(groep):
+                A = self.T(w[0])
+                if i + 1 < len(groep):
+                    B = self.T(groep[i + 1][0])
+                else:
+                    B = self.T(w[1]) + 0.12
+                    if limiet is not None:
+                        B = min(B, limiet)
+                if B - A < 0.05:
+                    continue
+                delen = []
+                for j, t in enumerate(teksten):
+                    if j == i:
+                        delen.append(f"{{{self.c('accent')}\\fscx108\\fscy108}}{esc(t)}{{{self.c('creme')}\\fscx100\\fscy100}}")
+                    else:
+                        delen.append(esc(t))
+                pop = "\\fscx94\\fscy94\\t(0,110,\\fscx100\\fscy100)" if i == 0 else ""
+                self.ev(A, B, f"{{\\an5\\pos({cx:.1f},{y_mid:.1f}){pop}{self.font_tag('titel')}\\fs{fsv:.0f}"
+                              f"\\bord{rand}{self.c3('ink')}\\shad0{self.c('creme')}}}" + " ".join(delen),
+                        layer=12)
+        self.n_subs = len(woorden)
+
     def bouw_alles(self):
         # volgorde telt: hook en stapkaarten claimen eerst hun plek in de band
         # boven het beeld, daarna schuiven tip- en promptkaarten eronder
-        self.bouw_ondertitels()
+        if str(self.sb.get("captions", "zin")).lower() == "woord":
+            self.bouw_woordcaptions()
+        else:
+            self.bouw_ondertitels()
         self.bouw_hook()
+        self.bouw_koppen()
         self.bouw_stappen()
         self.bouw_highlights()
+        self.bouw_autozoom()
         self.bouw_kaarten_rechts()
         self.bouw_versnelchips()
         self.bouw_intro()
@@ -2915,6 +3092,161 @@ def cmd_broll(args):
         sys.exit(1)
 
 
+def cmd_yap(args):
+    """Praatreel in één commando: film → pauzes eruit → captions → klaar om te renderen.
+
+    Doet wat een editor doet bij een talking-head opname: de stiltes
+    wegknippen, woord-voor-woord captions, zoomsprongen op de sneden,
+    een hook bovenaan, geluidseffecten en jouw eindkaart. Daarna kijk je
+    ernaar en stuur je bij (`bijsturen`), of je rendert.
+    """
+    naam = re.sub(r"[^a-z0-9\-]+", "-", args.naam.lower()).strip("-")
+    lesdir = os.path.join(HERE, "lessen", naam)
+    if os.path.exists(lesdir) and not args.overschrijf:
+        die(f"{lesdir} bestaat al (gebruik --overschrijf om opnieuw te beginnen)")
+    bron_in = os.path.abspath(args.bron)
+    if not os.path.exists(bron_in):
+        die(f"bron niet gevonden: {bron_in}")
+    if not heeft_beeld(bron_in):
+        die(f"{os.path.basename(bron_in)} bevat geen beeld — een reel heeft je camerabeeld nodig.")
+    if not heeft_audio(bron_in):
+        die(f"{os.path.basename(bron_in)} bevat geen geluid — er valt niets te knippen of te ondertitelen.")
+    os.makedirs(lesdir, exist_ok=True)
+    ext = os.path.splitext(bron_in)[1].lower() or ".mp4"
+    doel = os.path.join(lesdir, "bron" + ext)
+    if not os.path.exists(doel):
+        if args.link:
+            try:
+                os.symlink(bron_in, doel)
+            except (OSError, NotImplementedError):
+                shutil.copy2(bron_in, doel)
+        else:
+            print(f"→ kopieer {os.path.basename(bron_in)} ({os.path.getsize(bron_in)/1e6:.0f} MB) …")
+            shutil.copy2(bron_in, doel)
+    duur = probe_duration(doel)
+
+    # wat je eerder zei dat je wilt (bijsturen) geldt als beginpunt
+    voorkeur = yap.lees_voorkeuren(os.path.join(HERE, yap.VOORKEUR_BESTAND))
+    zoom = args.zoom or voorkeur.get("autozoom", "normaal")
+
+    # ── pauzes → knippen ──
+    stiltes = detecteer_stiltes(doel, min_duur=float(args.pauze), drempel=int(args.drempel), samenvoegen=False)
+    knips = yap.pauzes_naar_knips(stiltes, duur)
+    weg = sum(b - a for a, b in knips)
+    print(f"→ {len(knips)} pauzes weggeknipt: {ftime(weg)} van {ftime(duur)} "
+          f"({100*weg/duur:.0f}%) · nieuwe lengte {ftime(duur - weg)}")
+
+    # ── woorden (whisper, per woord) ──
+    woorden = os.path.join(lesdir, "woorden.srt")
+    if not os.path.exists(woorden):
+        model, whisper = omgeving.zoek_whisper_model(), omgeving.zoek_whisper()
+        if not whisper or not model:
+            wat = "whisper-cli" if not whisper else f"het model {omgeving.MODEL_NAAM}"
+            print(f"  ! {wat} niet gevonden — geen woordcaptions.\n"
+                  f"    Installeren:  {omgeving.hint('whisper' if not whisper else 'model')}\n"
+                  f"    Daarna: ./reelstudio.sh yap {naam} {args.bron} --overschrijf\n"
+                  f"    Of schrijf zelf lessen/{naam}/woorden.srt (één woord per cue).")
+        else:
+            wav = os.path.join(lesdir, ".audio16k.wav")
+            subprocess.run([FF, "-y", "-hide_banner", "-loglevel", "error", "-i", doel,
+                            "-vn", "-ac", "1", "-ar", "16000", wav], check=True)
+            print("→ transcriberen met whisper, woord voor woord …")
+            base = os.path.join(lesdir, "woorden")
+            prompt = (args.woordenlijst or omgeving.instelling("woordenlijst")
+                      or "Een korte video waarin iemand rechtstreeks in de camera praat.")
+            draai_whisper_met_voortgang([whisper, "-m", model, "-l", args.taal, "-t", "8",
+                                         "--prompt", prompt, "-ml", "1", "-sow", "-osrt",
+                                         "-of", base, "-f", wav])
+            os.remove(wav)
+            # het woordenboek (Cloud → Claude) geldt ook hier
+            rules = load_woordenboek(os.path.join(HERE, "woordenboek.conf"))
+            cues = [(a, b, apply_woordenboek(t, rules)) for a, b, t in read_srt(base + ".srt")]
+            with open(woorden, "w", encoding="utf-8") as fh:
+                for i, (a, b, t) in enumerate(cues, 1):
+                    fh.write(f"{i}\n{srt_time(a)} --> {srt_time(b)}\n{t.strip()}\n\n")
+            print(f"→ woorden.srt ({len(cues)} woorden) — lees na of er iets verkeerd verstaan is")
+
+    # ── storyboard ──
+    r = []
+    r.append(f"titel: {args.hook or naam.replace('-', ' ').title()}")
+    r.append("soort: uitleg")
+    r.append("formaat: reel")
+    r.append(f"merk: {args.merk or STANDAARD_MERK}")
+    if args.look:
+        r.append(f"look: {args.look}")
+    r.append("bron: " + os.path.basename(doel))
+    r.append("intro: nee")
+    if args.hook:
+        r.append(f"hook: {args.hook}")
+        r.append("hook_duur: 2.6")
+    r.append("captions: woord")
+    for sl in ("captions_hoogte", "captions_grootte", "captions_caps", "geluid"):
+        if sl in voorkeur:
+            v = voorkeur[sl]
+            r.append(f"{sl}: {'ja' if v is True else 'nee' if v is False else v}")
+    r.append(f"autozoom: {zoom}                  # geen | weinig | normaal | veel")
+    if args.cta:
+        r.append("outro: ja")
+        r.append(f"outro_volgende: {args.cta}")
+    else:
+        r.append("outro: nee")
+    r.append("# koppen: headline-stickers boven het beeld")
+    r.append("# koppen:")
+    r.append("#  - { van: 0:04, tot: 0:07, tekst: \"De fout die iedereen maakt\" }")
+    r.append("knip:")
+    for a, b in knips:
+        r.append(f"  - {{ van: {ftime(a)}, tot: {ftime(b)} }}")
+    if not knips:
+        r[-1] = "knip: []"
+    open(os.path.join(lesdir, "storyboard.yaml"), "w", encoding="utf-8").write("\n".join(r) + "\n")
+    print(f"\n✓ klaar: {lesdir}\n"
+          f"  ./reelstudio.sh check {naam}                  bekijk de tijdlijn\n"
+          f"  ./reelstudio.sh render {naam} --preview       snelle versie\n"
+          f"  ./reelstudio.sh bijsturen {naam} \"minder zooms\"  zeg wat anders moet\n"
+          f"  ./reelstudio.sh render {naam}                 de echte")
+    if args.render:
+        sys.exit(subprocess.run([sys.executable, os.path.join(HERE, "reelstudio.py"), "render", naam]
+                                + (["--preview"] if args.preview else [])).returncode)
+
+
+def cmd_bijsturen(args):
+    """Feedback in gewone taal: "minder zooms", "captions hoger" …
+
+    Past dit storyboard aan én onthoudt het als voorkeur voor je volgende
+    reel, zodat elke edit dichter bij jouw smaak komt.
+    """
+    lesdir = os.path.abspath(args.les)
+    sbp = os.path.join(lesdir, "storyboard.yaml")
+    if not os.path.exists(sbp):
+        die(f"geen storyboard.yaml in {lesdir}")
+    sb = yload(sbp) or {}
+    voorkeur_pad = os.path.join(HERE, yap.VOORKEUR_BESTAND)
+    voorkeur = yap.lees_voorkeuren(voorkeur_pad)
+    huidig = dict(voorkeur)
+    huidig.update({k: sb[k] for k in ("autozoom", "geluid", "captions_hoogte",
+                                      "captions_grootte", "captions_caps") if k in sb})
+    wijz, uitleg = yap.feedback_naar_wijzigingen(" ".join(args.tekst), huidig)
+    if not wijz:
+        die("dat heb ik niet begrepen. Wat ik herken: minder/meer/geen zooms, "
+            "geen geluidseffecten, captions hoger/lager, grotere/kleinere captions, "
+            "hoofdletters aan/uit.\n  Anders: zet het zelf in storyboard.yaml (zie LEESMIJ.md).")
+    regels = open(sbp, encoding="utf-8").read().split("\n")
+    for k, v in wijz.items():
+        waarde = "ja" if v is True else "nee" if v is False else str(v)
+        for i, rg in enumerate(regels):
+            if re.match(rf"^{k}\s*:", rg):
+                regels[i] = f"{k}: {waarde}"
+                break
+        else:
+            # vóór de knip-lijst, zodat de tijden onderaan bij elkaar blijven
+            pos = next((i for i, rg in enumerate(regels) if rg.startswith("knip")), len(regels))
+            regels.insert(pos, f"{k}: {waarde}")
+    open(sbp, "w", encoding="utf-8").write("\n".join(regels))
+    voorkeur.update(wijz)
+    yap.schrijf_voorkeuren(voorkeur_pad, voorkeur)
+    print("✓ " + ", ".join(uitleg) + f"\n  onthouden voor je volgende reel ({yap.VOORKEUR_BESTAND})")
+
+
 def cmd_transcribeer(args):
     """Maakt alleen de ondertitels — het storyboard blijft onaangeroerd.
 
@@ -3044,14 +3376,14 @@ def srt_time(t):
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def detecteer_stiltes(bron, min_duur=5.0, drempel=-38):
+def detecteer_stiltes(bron, min_duur=5.0, drempel=-38, samenvoegen=True):
     r = subprocess.run([FF, "-hide_banner", "-i", bron, "-af", f"silencedetect=noise={drempel}dB:d={min_duur}", "-f", "null", "-"],
                        capture_output=True, text=True)
     starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", r.stderr)]
     ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", r.stderr)]
     out = []
     for a, b in zip(starts, ends):
-        if out and a - out[-1][1] < 0.5:
+        if samenvoegen and out and a - out[-1][1] < 0.5:
             out[-1] = (out[-1][0], b)
         else:
             out.append((a, b))
@@ -3081,6 +3413,27 @@ def main():
     p.add_argument("--merk", help="welk merk (standaard: het standaardmerk)")
     p.add_argument("--cta", help="eindkaart met deze knop erbij (zonder: geen eindkaart)")
     p.set_defaults(fn=cmd_broll)
+
+    p = sub.add_parser("yap", help="praatreel: pauzes eruit, woordcaptions, zooms, hook, geluid")
+    p.add_argument("naam"); p.add_argument("bron", help="je opname (liefst staand, van de telefoon)")
+    p.add_argument("--hook", help="de eerste regel boven het beeld")
+    p.add_argument("--cta", help="eindkaart met deze oproep (zonder: geen eindkaart)")
+    p.add_argument("--merk", help="welk merk (standaard: het standaardmerk)")
+    p.add_argument("--look", help="kleurlook, bv. warm")
+    p.add_argument("--zoom", choices=list(yap.ZOOM_NIVEAUS), help="hoeveel zoomsprongen (standaard: normaal)")
+    p.add_argument("--pauze", default="0.35", help="stilte (s) vanaf wanneer er geknipt wordt")
+    p.add_argument("--drempel", default="-35", help="onder dit niveau (dB) telt als stilte")
+    p.add_argument("--taal", default="nl")
+    p.add_argument("--woordenlijst", help="hint voor whisper (eigen namen)")
+    p.add_argument("--link", action="store_true", help="symlink i.p.v. kopie van de bron")
+    p.add_argument("--overschrijf", action="store_true")
+    p.add_argument("--render", action="store_true", help="meteen renderen")
+    p.add_argument("--preview", action="store_true", help="met --render: snelle versie")
+    p.set_defaults(fn=cmd_yap)
+
+    p = sub.add_parser("bijsturen", help='feedback in gewone taal, bv. "minder zooms"')
+    p.add_argument("les"); p.add_argument("tekst", nargs="+")
+    p.set_defaults(fn=cmd_bijsturen)
 
     p = sub.add_parser("transcribeer", help="maak (alleen) de ondertitels, storyboard blijft staan")
     p.add_argument("les"); p.add_argument("--taal", default="nl")

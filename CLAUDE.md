@@ -120,6 +120,14 @@ Wat je moet weten voor je een reel-storyboard invult:
   dat er per moment één ding in beeld staat.
 - **Houd de outro kort** (één of twee punten, één CTA) — 3 seconden is de norm.
 
+## Praatreels (talking head)
+
+Iemand filmt zichzelf en wil een afgewerkte reel: gebruik `./reelstudio.sh yap` en
+volg `YAP.md` (werkwijze, regels, storyboard-sleutels). De rekenlogica (pauzes, woordgroepen,
+zoomplan, feedback) staat in `yap.py` zonder ffmpeg-afhankelijkheid; het tekenen en
+mixen zit in `Bouwer` (`bouw_woordcaptions`, `bouw_autozoom`, `bouw_koppen`,
+`_audio_afwerking`). Voeg nieuwe regels toe in `yap.py` en test ze daar.
+
 ## Huisstijl
 
 Merkbestanden staan in `merk/`. `standaard.yaml` is neutraal en documenteert elke
