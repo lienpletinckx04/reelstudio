@@ -39,3 +39,9 @@ __pycache__/
 
 # wat je via `bijsturen` over jouw smaak leert (persoonlijk)
 yap-voorkeuren.yaml
+
+# gebouwde pakketten
+dist/
+
+# cursusmateriaal wordt verkocht: nooit in de (mogelijk openbare) repo
+cursus/

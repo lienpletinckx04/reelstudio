@@ -126,7 +126,11 @@ Iemand filmt zichzelf en wil een afgewerkte reel: gebruik `./reelstudio.sh yap` 
 volg `YAP.md` (werkwijze, regels, storyboard-sleutels). De rekenlogica (pauzes, woordgroepen,
 zoomplan, feedback) staat in `yap.py` zonder ffmpeg-afhankelijkheid; het tekenen en
 mixen zit in `Bouwer` (`bouw_woordcaptions`, `bouw_autozoom`, `bouw_koppen`,
-`_audio_afwerking`). Voeg nieuwe regels toe in `yap.py` en test ze daar.
+`bouw_graphics`, `zachte_achtergrond`, `_audio_afwerking`). Voeg nieuwe regels toe in `yap.py` en test ze daar.
+
+**Voor je iets oplevert of pusht: `./reelstudio.sh test`.** Eenheidstests voor `yap.py` en een
+render van begin tot eind; nieuwe gedragsregels krijgen een test in `tests/`. Een pakket om
+te delen of verkopen maak je met `./reelstudio.sh pakket --aan "Naam"` (zie `VERSIE`).
 
 ## Huisstijl
 

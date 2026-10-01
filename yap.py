@@ -40,7 +40,8 @@ _RUIS = re.compile(r"^[\[\(♪].*[\]\)♪]$")
 
 def lees_woorden(path):
     """Woord-voor-woord SRT (whisper `-ml 1 -sow`) → [(begin, einde, woord)]."""
-    txt = open(path, encoding="utf-8-sig").read().strip().replace("\r", "")
+    with open(path, encoding="utf-8-sig") as fh:
+        txt = fh.read().strip().replace("\r", "")
     uit = []
     for blok in re.split(r"\n\s*\n", txt):
         regels = blok.strip().split("\n")
@@ -297,7 +298,9 @@ def feedback_naar_wijzigingen(tekst, huidig):
 def lees_voorkeuren(pad):
     d = {}
     if os.path.exists(pad):
-        for r in open(pad, encoding="utf-8"):
+        with open(pad, encoding="utf-8") as fh:
+            regels = fh.read().split("\n")
+        for r in regels:
             r = r.split("#")[0].strip()
             if ":" in r:
                 k, v = r.split(":", 1)

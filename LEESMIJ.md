@@ -19,7 +19,7 @@ Wat de tool aan je opname toevoegt:
 | **Knippen / versnellen** | haperingen eruit, wachttijd ×8 met chipje bovenaan |
 | **Montage** | meerdere opnames achter elkaar tot één video, elk met eigen beeldkader |
 | **Reels** | dezelfde les ook staand (1080×1920) voor Instagram, met hook en eindkaart |
-| **Praatreels** | pauzes eruit, caption per woord, zoomsprongen, koppen en geluid in één commando, zie [YAP.md](YAP.md) |
+| **Praatreels** | pauzes en versprekingen eruit, caption per woord, zoomsprongen, zachte achtergrond, koppen, graphics en geluid in één commando, zie [YAP.md](YAP.md). Nieuw hier? `./reelstudio.sh start` |
 | **Studio** | een interface in je browser: video kiezen, stijl instellen, slepen om aan te wijzen, renderen |
 
 ---

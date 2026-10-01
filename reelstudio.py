@@ -1515,6 +1515,29 @@ class Bouwer:
                                   f"{reeks} · {titel}" if reeks else "")
         self.band(A, self.intro_d, band_y, 110 * self.s, m.get("band_achtergrond", "ink"), m.get("band_tekstkleur", "creme"), band_txt)
 
+    def zachte_achtergrond(self):
+        return str(self.sb.get("achtergrond", "nee")).lower() in ("zacht", "wazig", "ja")
+
+    def achtergrond_sterkte(self):
+        return float(self.sb.get("achtergrond_sterkte", 18))
+
+    def maak_masker(self):
+        """Eén grijs beeld: wit rond het gezicht, zacht uitlopend naar zwart."""
+        mid = self.sb.get("zoom_midden") or [self.W / 2, self.H * 0.42]
+        cx, cy = float(mid[0]) / self.W, float(mid[1]) / self.H
+        rx = float(self.sb.get("achtergrond_breedte", 0.60))
+        ry = float(self.sb.get("achtergrond_hoogte", 0.42))
+        pad = os.path.join(self.uitdir, f"masker_{self.W}x{self.H}_{cx:.2f}_{cy:.2f}_{rx:.2f}_{ry:.2f}.png")
+        if not os.path.exists(pad):
+            d = f"hypot((X/W-{cx:.4f})/{rx:.4f},(Y/H-{cy:.4f})/{ry:.4f})"
+            r = subprocess.run([FF, "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                                f"color=c=black:s={self.W}x{self.H},format=gray,"
+                                f"geq=lum='255*clip((1.25-{d})/0.6,0,1)'",
+                                "-frames:v", "1", pad], capture_output=True, text=True)
+            if r.returncode != 0:
+                die("masker voor de zachte achtergrond maken mislukt:\n" + r.stderr)
+        return pad
+
     def look_vf(self):
         """Extra filters op het bronbeeld, vóór de overlays.
 
@@ -1862,8 +1885,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for c in self.clips:
             inputs += ["-ss", f"{c.van:.3f}", "-t", f"{c.duur:.3f}", "-i", c.pad]
             vi = nin; nin += 1
-            fc.append(f"[{vi}:v]fps={FPS},{c.kader.vf(kaderkl)}{self.look_vf()},format=yuv420p,"
-                      f"setpts=PTS-STARTPTS[k{vi}]")
+            if self.zachte_achtergrond():
+                # scherp in een zachte ellips rond het gezicht, de rand wazig:
+                # geen persoonsherkenning, wel wat een talking head nodig heeft
+                inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{c.duur:.3f}",
+                           "-i", self.maak_masker()]
+                mi = nin; nin += 1
+                fc.append(f"[{vi}:v]fps={FPS},{c.kader.vf(kaderkl)}{self.look_vf()},format=yuv420p,"
+                          f"setpts=PTS-STARTPTS,split[z{vi}a][z{vi}b]")
+                fc.append(f"[z{vi}b]gblur=sigma={self.achtergrond_sterkte():g}[z{vi}w]")
+                fc.append(f"[{mi}:v]format=gray,fps={FPS},setpts=PTS-STARTPTS[z{vi}m]")
+                fc.append(f"[z{vi}w][z{vi}a][z{vi}m]maskedmerge,format=yuv420p[k{vi}]")
+            else:
+                fc.append(f"[{vi}:v]fps={FPS},{c.kader.vf(kaderkl)}{self.look_vf()},format=yuv420p,"
+                          f"setpts=PTS-STARTPTS[k{vi}]")
             if c.audio:
                 fc.append(f"[{vi}:a]aformat=sample_fmts=fltp:sample_rates=48000:"
                           f"channel_layouts=stereo,asetpts=PTS-STARTPTS[ka{vi}]")
@@ -2114,6 +2149,89 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if geluid:
                 self.sfx.append(("pop", A))
 
+    def bouw_graphics(self):
+        """Kleine geanimeerde graphics: getal, vink, pijl.
+
+        graphics:
+          - { van: 0:03, tot: 0:06, type: getal, tekst: "3" }
+          - { van: 0:10, tot: 0:13, type: vink, tekst: "Klaar in 5 min" }
+          - { van: 0:15, tot: 0:18, type: pijl, x: 0.5, y: 0.3, tekst: "Kijk hier" }
+        x en y (0 tot 1) leggen een positie vast; zonder zoekt hij zelf plek
+        in de band boven het beeld.
+        """
+        lijst = self.sb.get("graphics") or []
+        if not lijst:
+            return
+        f = self.f_titel
+        geluid = bool(self.sb.get("geluid", True))
+        for g in lijst:
+            if not isinstance(g, dict):
+                continue
+            a, b = ptime(g.get("van")), ptime(g.get("tot"))
+            soort = str(g.get("type", "")).lower()
+            if a is None or b is None or soort not in ("getal", "vink", "pijl"):
+                self.waarschuwingen.append(f"graphic overgeslagen (van/tot/type kloppen niet): {g}")
+                continue
+            A, B = self.T(a), self.T(b)
+            tekst = str(g.get("tekst", ""))
+            if soort == "getal":
+                r = 90 * self.s * self.ts
+                y, start = (self.H * float(g["y"]) - r, A) if "y" in g else self.plaats_boven(A, B, 2 * r + 30 * self.s, 1.0)
+                if y is None:
+                    self.waarschuwingen.append(f"graphic '{tekst}' past nergens — overgeslagen")
+                    continue
+                cx = self.W * float(g["x"]) if "x" in g else self.W / 2
+                cy = y + r
+                bounce = "\\fscx40\\fscy40\\t(0,180,\\fscx118\\fscy118)\\t(180,300,\\fscx100\\fscy100)"
+                self.ev(start, B, f"{{\\an7\\pos({cx:.1f},{cy:.1f})\\fad(100,200){bounce}\\bord0\\shad0"
+                                  f"{self.c('accent')}\\p1}}{rrect(-r, -r, 2*r, 2*r, r)}{{\\p0}}", layer=48)
+                fsv = self.fs(f, self.tem(84) if len(tekst) < 3 else self.tem(56))
+                self.ev(start, B, f"{{\\an5\\pos({cx:.1f},{cy:.1f})\\fad(100,200){bounce}"
+                                  f"{self.font_tag('titel')}\\fs{fsv:.0f}\\bord0\\shad0{self.c('wit')}}}{esc(tekst)}", layer=49)
+                if "y" not in g:
+                    self.bezet_boven.append((start, B, y + 2 * r + 30 * self.s))
+            elif soort == "vink":
+                r = 46 * self.s * self.ts
+                fsv = self.fs(f, self.tem(44))
+                w_t = f.width(tekst, fsv) if tekst else 0
+                pw = 2 * r + (24 * self.ts + w_t if tekst else 0) + 24 * self.ts
+                ph = 2 * r + 24 * self.ts
+                y, start = ((self.H * float(g["y"]) - ph / 2, A) if "y" in g
+                            else self.plaats_boven(A, B, ph + 30 * self.s, 1.0))
+                if y is None:
+                    self.waarschuwingen.append(f"graphic '{tekst}' past nergens — overgeslagen")
+                    continue
+                cx = self.W * float(g["x"]) if "x" in g else self.W / 2
+                pop = "\\fscx85\\fscy85\\t(0,200,\\fscx100\\fscy100)"
+                self.ev(start, B, f"{{\\an7\\pos({cx:.1f},{y + ph/2:.1f})\\fad(100,200){pop}\\bord0\\shad0"
+                                  f"{self.c('ink', 0.1)}\\p1}}{rrect(-pw/2, -ph/2, pw, ph, ph/2)}{{\\p0}}", layer=48)
+                bx = -pw / 2 + 12 * self.ts + r
+                vink = (f"m {bx - 0.5*r:.1f} {0:.1f} l {bx - 0.12*r:.1f} {0.42*r:.1f} "
+                        f"l {bx + 0.55*r:.1f} {-0.42*r:.1f} l {bx + 0.4*r:.1f} {-0.58*r:.1f} "
+                        f"l {bx - 0.12*r:.1f} {0.1*r:.1f} l {bx - 0.36*r:.1f} {-0.18*r:.1f}")
+                self.ev(start, B, f"{{\\an7\\pos({cx:.1f},{y + ph/2:.1f})\\fad(100,200){pop}\\bord0\\shad0"
+                                  f"{self.c('accent')}\\p1}}{rrect(bx - r, -r, 2*r, 2*r, r)}{{\\p0}}", layer=49)
+                self.ev(start, B, f"{{\\an7\\pos({cx:.1f},{y + ph/2:.1f})\\fad(100,200){pop}\\bord0\\shad0"
+                                  f"{self.c('wit')}\\p1}}{vink}{{\\p0}}", layer=50)
+                if tekst:
+                    self.ev(start, B, f"{{\\an4\\pos({cx - pw/2 + 12*self.ts + 2*r + 16*self.ts:.1f},{y + ph/2:.1f})\\fad(100,200)"
+                                      f"{self.font_tag('titel')}\\fs{fsv:.0f}\\bord0\\shad0{self.c('creme')}}}{esc(tekst)}", layer=50)
+                if "y" not in g:
+                    self.bezet_boven.append((start, B, y + ph + 30 * self.s))
+            else:  # pijl
+                px, py = self.W * float(g.get("x", 0.5)), self.H * float(g.get("y", 0.4))
+                l = 120 * self.s * self.ts
+                dx = f"\\move({px:.1f},{py - l - 30:.1f},{px:.1f},{py - l:.1f},0,260)"
+                pijl = (f"m 0 {l:.1f} l {0.32*l:.1f} {0.5*l:.1f} l {0.12*l:.1f} {0.5*l:.1f} l {0.12*l:.1f} 0 "
+                        f"l {-0.12*l:.1f} 0 l {-0.12*l:.1f} {0.5*l:.1f} l {-0.32*l:.1f} {0.5*l:.1f}")
+                self.ev(A, B, f"{{\\an7{dx}\\fad(100,200)\\bord4{self.c3('ink')}\\shad0{self.c('accent')}\\p1}}{pijl}{{\\p0}}", layer=48)
+                if tekst:
+                    fsv = self.fs(f, self.tem(44))
+                    self.ev(A, B, f"{{\\an8\\pos({px:.1f},{py - l - 90*self.ts:.1f})\\fad(100,200)"
+                                  f"{self.font_tag('titel')}\\fs{fsv:.0f}\\bord6{self.c3('ink')}\\shad0{self.c('creme')}}}{esc(tekst)}", layer=49)
+            if geluid:
+                self.sfx.append(("pop", A))
+
     def bouw_woordcaptions(self):
         """Eén stukje van 1–3 woorden tegelijk, het gesproken woord in accent.
 
@@ -2197,6 +2315,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             self.bouw_ondertitels()
         self.bouw_hook()
         self.bouw_koppen()
+        self.bouw_graphics()
         self.bouw_stappen()
         self.bouw_highlights()
         self.bouw_autozoom()
@@ -3267,6 +3386,125 @@ def cmd_bijsturen(args):
     print("✓ " + ", ".join(uitleg) + f"\n  onthouden voor je volgende reel ({yap.VOORKEUR_BESTAND})")
 
 
+def cmd_start(args):
+    """De wizard: van je eerste opname naar een afgewerkte reel, stap voor stap.
+
+    Voor wie niet in de terminal thuis is (en voor cursisten): het stelt de
+    vragen, doet het werk, laat een preview zien en vraagt of er iets anders
+    moet. Elke stap die hij uitvoert staat erbij, zodat je leert wat er gebeurt.
+    """
+    if not sys.stdin.isatty():
+        die("`start` stelt vragen en heeft dus een terminal nodig. Zonder vragen: "
+            "./reelstudio.sh yap <naam> <opname> --hook \"...\"")
+    print("\n  Welkom bij Reelstudio. In een paar vragen heb je een afgewerkte reel.\n")
+    mog = omgeving.mogelijkheden(FF)
+    if not mog["ass"]:
+        die("ffmpeg heeft geen libass, en dan kan ik geen tekst op je video zetten.\n"
+            "  Draai ./installeer.sh (Windows: .\\installeer.ps1) en probeer het opnieuw.")
+    if not omgeving.zoek_whisper() or not omgeving.zoek_whisper_model():
+        print("  ! whisper staat nog niet klaar: je reel krijgt dan geen woord-voor-woord captions.\n"
+              "    ./installeer.sh zet het klaar. We gaan voorlopig verder zonder.\n")
+    # 1. de opname
+    while True:
+        pad = vraag("Sleep je opname hierheen (of typ het pad)",
+                    uitleg="Een video waarin je rechtstreeks in de camera praat, het liefst staand.")
+        pad = os.path.expanduser(pad.strip().strip("'\"").replace("\\ ", " "))
+        if pad and os.path.exists(pad):
+            break
+        print("    ! ik vind dat bestand niet — probeer het opnieuw")
+    # 2. hook en oproep
+    hook = vraag("Wat is de eerste zin die iemand moet lezen?",
+                 uitleg="Een belofte of een prikkel, max. 8 woorden. Voorbeeld: 3 dingen die ik nooit meer doe")
+    cta = vraag("Welke oproep komt op het einde?", "Volg voor meer")
+    # 3. merk
+    namen = sorted(f[:-5] for f in os.listdir(os.path.join(HERE, "merk")) if f.endswith(".yaml"))
+    print(f"\n  Beschikbare merken: {', '.join(namen)}")
+    merk = vraag("Welk merk?", STANDAARD_MERK, "Een eigen merk maken kan straks met: ./reelstudio.sh merk nieuw <naam>")
+    if merk not in namen:
+        print(f"    ! '{merk}' bestaat niet, ik neem {STANDAARD_MERK}")
+        merk = STANDAARD_MERK
+    naam = re.sub(r"[^a-z0-9\-]+", "-", (hook or "reel").lower()).strip("-")[:40] or "reel"
+    n, basis = 1, naam
+    while os.path.exists(os.path.join(HERE, "lessen", naam)):
+        n += 1
+        naam = f"{basis}-{n}"
+    py = [sys.executable, os.path.join(HERE, "reelstudio.py")]
+    print("\n  → pauzes en versprekingen knippen, woorden uitschrijven, alles opbouwen …\n")
+    cmd = py + ["yap", naam, pad, "--merk", merk, "--cta", cta]
+    if hook:
+        cmd += ["--hook", hook]
+    if subprocess.run(cmd).returncode != 0:
+        die("dat ging mis — de melding hierboven zegt waarom")
+    # 4. preview en bijsturen
+    while True:
+        print("\n  → preview renderen (snel, lagere kwaliteit) …\n")
+        if subprocess.run(py + ["render", naam, "--preview"]).returncode != 0:
+            die("renderen lukte niet — draai ./reelstudio.sh dokter")
+        uit = os.path.join(HERE, "lessen", naam, "uit", f"{naam}_preview.mp4")
+        print(f"\n  Kijk even naar: {uit}")
+        fb = vraag("Moet er iets anders? (bv. minder zooms, captions hoger, één woord per keer; enter = klaar)")
+        if not fb:
+            break
+        subprocess.run(py + ["bijsturen", naam] + fb.split())
+    if vraag("Nu de echte versie renderen? (j/n)", "j").lower().startswith("j"):
+        subprocess.run(py + ["render", naam])
+    print(f"\n  ✓ klaar. Je reel staat in lessen/{naam}/uit/\n"
+          f"    Volgende keer sneller: ./reelstudio.sh yap <naam> <opname> --hook \"...\"")
+
+
+def cmd_test(args):
+    """Draait de ingebouwde tests (eenheidstests + een render van begin tot eind)."""
+    r = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s",
+                        os.path.join(HERE, "tests"), "-v" if args.uitgebreid else "-q"], cwd=HERE)
+    sys.exit(r.returncode)
+
+
+def versie():
+    pad = os.path.join(HERE, "VERSIE")
+    if os.path.exists(pad):
+        with open(pad, encoding="utf-8") as fh:
+            return fh.read().strip() or "0.0.0"
+    return "0.0.0"
+
+
+def cmd_pakket(args):
+    """Bouwt een schone zip om door te geven: de tool, zonder jouw lessen of instellingen.
+
+    Met --aan "Naam" komt er een LICENTIEHOUDER.txt in. Dat is een herkenbaar
+    spoor, geen kopieerbeveiliging: wie het deelt kan je er wel op aanspreken.
+    """
+    import zipfile, datetime
+    r = subprocess.run(["git", "ls-files"], cwd=HERE, capture_output=True, text=True)
+    if r.returncode != 0:
+        die("pakket maken kan alleen vanuit de git-map (git ls-files mislukte)")
+    alle = [f for f in r.stdout.split("\n") if f and not f.startswith(".claude/")]
+    bestanden = [f for f in alle if args.met_tests or not f.startswith("tests/")]
+    if args.met_cursus:
+        # cursusmateriaal staat bewust niet in git (de repo kan openbaar zijn): van schijf
+        cdir = os.path.join(HERE, "cursus")
+        for dp, _dn, fn in os.walk(cdir):
+            for x in sorted(fn):
+                bestanden.append(os.path.relpath(os.path.join(dp, x), HERE))
+    os.makedirs(os.path.join(HERE, "dist"), exist_ok=True)
+    suffix = ("-" + re.sub(r"[^a-z0-9]+", "-", args.aan.lower()).strip("-")) if args.aan else ""
+    uit = os.path.join(HERE, "dist", f"reelstudio-{versie()}{suffix}.zip")
+    root = f"reelstudio-{versie()}"
+    with zipfile.ZipFile(uit, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in bestanden:
+            pad = os.path.join(HERE, f)
+            if os.path.isfile(pad):
+                info = zipfile.ZipInfo.from_file(pad, f"{root}/{f}")
+                info.compress_type = zipfile.ZIP_DEFLATED
+                with open(pad, "rb") as fh:
+                    z.writestr(info, fh.read())
+        if args.aan:
+            z.writestr(f"{root}/LICENTIEHOUDER.txt",
+                       f"Reelstudio {versie()}\nLicentie voor: {args.aan}\n"
+                       f"Uitgegeven op: {datetime.date.today().isoformat()}\n"
+                       "Niet delen of doorverkopen zonder schriftelijke toestemming.\n")
+    print(f"✓ {uit}  ({os.path.getsize(uit)/1e6:.1f} MB, {len(bestanden)} bestanden)")
+
+
 def cmd_transcribeer(args):
     """Maakt alleen de ondertitels — het storyboard blijft onaangeroerd.
 
@@ -3453,6 +3691,19 @@ def main():
     p.add_argument("--render", action="store_true", help="meteen renderen")
     p.add_argument("--preview", action="store_true", help="met --render: snelle versie")
     p.set_defaults(fn=cmd_yap)
+
+    p = sub.add_parser("start", help="de wizard: stap voor stap van opname naar reel")
+    p.set_defaults(fn=cmd_start)
+
+    p = sub.add_parser("test", help="draai de ingebouwde tests")
+    p.add_argument("-v", "--uitgebreid", action="store_true")
+    p.set_defaults(fn=cmd_test)
+
+    p = sub.add_parser("pakket", help="maak een schone zip om door te geven of te verkopen")
+    p.add_argument("--aan", help='op wiens naam de licentie staat, bv. "Jan Peeters"')
+    p.add_argument("--met-cursus", dest="met_cursus", action="store_true", help="cursusmateriaal meenemen")
+    p.add_argument("--met-tests", dest="met_tests", action="store_true")
+    p.set_defaults(fn=cmd_pakket)
 
     p = sub.add_parser("bijsturen", help='feedback in gewone taal, bv. "minder zooms"')
     p.add_argument("les"); p.add_argument("tekst", nargs="+")
