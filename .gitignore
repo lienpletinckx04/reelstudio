@@ -25,7 +25,7 @@ instellingen.yaml
 
 # de ingebouwde proefrender en de merkvoorbeelden
 .merkvoorbeeld/
-merk/*-voorbeeld.png
+merk/*-voorbeeld*.png
 
 # macOS / editors / Windows
 .DS_Store
