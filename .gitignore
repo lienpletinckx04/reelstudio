@@ -45,3 +45,4 @@ dist/
 
 # cursusmateriaal wordt verkocht: nooit in de (mogelijk openbare) repo
 cursus/
+*.zip
